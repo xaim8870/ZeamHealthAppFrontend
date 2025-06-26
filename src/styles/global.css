@@ -1,0 +1,70 @@
+/* Custom styles for black and white mode */
+/* Remove @tailwind directives if not using Tailwind's build process */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for black and white mode */
+.bw-mode {
+  background-color: #000 !important; /* Full black background */
+  color: #d1d5db !important; /* Gray-300 text as default */
+}
+
+/* Override specific elements to ensure readability in black and white mode */
+.bw-mode .bg-gradient-to-r {
+  background: linear-gradient(to right, #000, #000) !important; /* Solid black gradient */
+}
+
+.bw-mode .text-transparent {
+  color: #d1d5db !important; /* Gray-300 text for transparency overrides */
+}
+
+.bw-mode .bg-red-500,
+.bw-mode .bg-blue-500,
+.bw-mode .bg-green-500 {
+  background-color: #4b5563 !important; /* Gray-600 for animated dots */
+}
+
+.bw-mode .from-indigo-600,
+.bw-mode .to-purple-600 {
+  background: none !important; /* Remove gradient for ZEAM HEALTH text */
+  color: #d1d5db !important; /* Gray-300 text */
+}
+
+/* Ensure NeuralPatternBackground adapts */
+.bw-mode .neural-pattern {
+  background-color: #000 !important; /* Black background for pattern */
+  filter: brightness(0.5) !important; /* Adjust pattern visibility */
+}
+
+/* Adjust other components */
+.bw-mode .card {
+  background-color: #1a1a1a !important; /* Darker gray card background */
+  border-color: #4b5563 !important; /* Gray-600 */
+}
+
+.bw-mode .button {
+  background-color: #4b5563 !important; /* Gray-600 */
+  color: #d1d5db !important; /* Gray-300 */
+  border-color: #6b7280 !important; /* Gray-500 */
+}
+
+.bw-mode .button:hover {
+  background-color: #374151 !important; /* Gray-700 */
+}
+
+/* Ensure all nested elements inherit the theme */
+.bw-mode * {
+  background-color: inherit !important;
+  color: inherit !important;
+  border-color: inherit !important;
+}
+
+/* Exempt specific components from theme changes */
+.theme-exempt,
+.theme-exempt * {
+  background-color: initial !important;
+  color: initial !important;
+  border-color: initial !important;
+  background-image: initial !important;
+}
