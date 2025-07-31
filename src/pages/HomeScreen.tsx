@@ -3,12 +3,12 @@ import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MessageCircle, Users, Sun, Moon } from "lucide-react";
-import HealthTriangle from "./HealthTriangle";
-import ModuleButton from "./ModuleButton";
-import NeuralPatternBackground from "./NeuralPatternBackground";
-import ColoredTriangle from "./ColoredTriangle";
+import HealthTriangle from "../components/HealthTriangle"; // Adjust path
+import ModuleButton from "../components/ModuleButton"; // Adjust path
+import NeuralPatternBackground from "../components/NeuralPatternBackground"; // Adjust path
+import ColoredTriangle from "../components/ColoredTriangle"; // Adjust path
 import { useNavigate } from "react-router-dom";
-import type { ModuleType } from "@/pages/Index";
+import type { ModuleType } from "./Index"; // Adjust path
 
 interface HomeScreenProps {
   onChatOpen: () => void;

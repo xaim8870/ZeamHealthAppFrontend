@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import HomeScreen from "@/components/HomeScreen";
+import HomeScreen from "@/pages/HomeScreen";
 import MindModule from "@/components/modules/MindModule";
 import ActivityModule from "@/components/modules/ActivityModule";
 import BodyModule from "@/components/modules/BodyModule";

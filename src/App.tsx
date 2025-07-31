@@ -2,8 +2,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
-import HomeScreen from "./pages/Index";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate, Navigate } from "react-router-dom";
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import AuthPages from "./pages/AuthPages";
+import HomeScreen from "./pages/HomeScreen";
 import NotFound from "./pages/NotFound";
 import MindModule from "@/components/modules/MindModule";
 import BodyModule from "@/components/modules/BodyModule";
@@ -15,6 +17,22 @@ import Footer from "@/components/Footer";
 
 // Import global styles
 import "./styles/global.css";
+import React from "react";
+
+// Mock authentication state with test login
+const useAuth = () => {
+  const [isAuthenticated, setIsAuthenticated] = React.useState(false); // Initial state
+  const login = (email: string, password: string) => {
+    // Test credentials
+    if (email === "test@zeamhealth.com" && password === "password123") {
+      setIsAuthenticated(true);
+      return true;
+    }
+    return false;
+  };
+  const logout = () => setIsAuthenticated(false);
+  return { isAuthenticated, setIsAuthenticated, login, logout };
+};
 
 const queryClient = new QueryClient();
 
@@ -22,19 +40,51 @@ const queryClient = new QueryClient();
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated, login } = useAuth();
 
   return (
-    <div className="min-h-screen dark:bg-black" id="app-root"> {/* Added id for reference */}
+    <div className="min-h-screen dark:bg-black" id="app-root">
       <Routes>
-        <Route path="/" element={<HomeScreen />} />
-        <Route path="/mind" element={<MindModule onBack={() => navigate("/")} />} />
-        <Route path="/body" element={<BodyModule onBack={() => navigate("/")} />} />
-        <Route path="/activity" element={<ActivityModule onBack={() => navigate("/")} onModuleSelect={function (module: string): void {
-          throw new Error("Function not implemented.");
-        } } />} />
-        <Route path="/sleep" element={<SleepModule onBack={() => navigate("/")} />} />
-        <Route path="/provider" element={<ProviderDashboard onBack={() => navigate("/")} />} />
-        <Route path="/chat" element={<ChatAssistant isOpen={true} onClose={() => navigate("/")} />} />
+        <Route
+          path="/login"
+          element={<AuthPages isSignup={false} onLogin={login} />}
+        />
+        <Route
+          path="/signup"
+          element={<AuthPages isSignup={true} onLogin={login} />}
+        />
+        <Route
+          path="/home"
+          element={isAuthenticated ? <HomeScreen onChatOpen={() => navigate('/chat')} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/mind"
+          element={isAuthenticated ? <MindModule onBack={() => navigate("/home")} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/body"
+          element={isAuthenticated ? <BodyModule onBack={() => navigate("/home")} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/activity"
+          element={isAuthenticated ? <ActivityModule onBack={() => navigate("/home")} onModuleSelect={() => {}} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/sleep"
+          element={isAuthenticated ? <SleepModule onBack={() => navigate("/home")} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/provider"
+          element={isAuthenticated ? <ProviderDashboard onBack={() => navigate("/home")} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/chat"
+          element={isAuthenticated ? <ChatAssistant isOpen={true} onClose={() => navigate("/home")} /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/"
+          element={<Navigate to={isAuthenticated ? "/home" : "/login"} />}
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />
@@ -47,9 +97,11 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <AppLayout />
-      </BrowserRouter>
+      <GoogleOAuthProvider clientId="YOUR_GOOGLE_CLIENT_ID"> {/* Replace with your Google Client ID */}
+        <BrowserRouter>
+          <AppLayout />
+        </BrowserRouter>
+      </GoogleOAuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

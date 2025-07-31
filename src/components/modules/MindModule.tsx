@@ -14,6 +14,9 @@ import AlphaReactiveStateTest from "../tests/AlphaReactiveStateTest";
 import TenMinEyesClosedTest from "../tests/10MinsOfEyesClosedTest";
 import CustomRecordingTest from "../tests/CustomRecordingTest";
 import SignalQualityTest from "../tests/SignalQualityTest";
+import EEGAssessment from "../tests/EEEAssessment";
+import CustomAssessment from "../tests/CustomAssessment";
+import HeadbandSelection from "../tests/HeadbandSelection"; // Assume this component exists or will be created
 
 interface MindModuleProps {
   onBack: () => void;
@@ -25,37 +28,74 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<any>(null);
   const [signalQualityGood, setSignalQualityGood] = useState<boolean | null>(null);
+  const [showHeadbandSelection, setShowHeadbandSelection] = useState(false);
+  const [selectedDevice, setSelectedDevice] = useState<"neurosity" | "muse" | null>(null);
 
+  // Mock EEG data tailored to each device
   const mockEEGData = {
-    currentState: isConnected ? "Focused" : "Disconnected",
-    alpha: 8.2,
-    beta: 12.5,
-    theta: 4.1,
-    delta: 2.3,
-    stress: 3.2,
-    focus: 7.8,
-    signal_quality: 85,
+    neurosity: {
+      currentState: isConnected ? "Focused" : "Disconnected",
+      alpha: 8.2,
+      beta: 12.5,
+      theta: 4.1,
+      delta: 2.3,
+      stress: 3.2,
+      focus: 7.8,
+      signal_quality: 85,
+    },
+    muse: {
+      currentState: isConnected ? "Calm" : "Disconnected",
+      alpha: 9.0,
+      beta: 11.0,
+      theta: 3.5,
+      delta: 1.8,
+      stress: 2.5,
+      focus: 8.5,
+      signal_quality: 90,
+    },
   };
 
+  const currentData = selectedDevice ? mockEEGData[selectedDevice] : mockEEGData.neurosity;
+
   const handleConnect = () => {
-    setIsConnected(!isConnected);
+    setShowHeadbandSelection(true);
   };
 
   const handleTestSelect = (testId: string) => {
     setCurrentTest(testId);
   };
 
+  const handleSignalQualityComplete = (isGood: boolean) => {
+    setSignalQualityGood(isGood);
+    if (isGood) {
+      setIsConnected(true);
+    }
+    setShowHeadbandSelection(false);
+    setSelectedDevice(null); // Reset after connection
+  };
+
+  if (showHeadbandSelection) {
+    return (
+      <HeadbandSelection
+        onBack={() => setShowHeadbandSelection(false)}
+        onComplete={(device) => {
+          setSelectedDevice(device);
+          setCurrentTest("signal_quality"); // Start signal quality test
+        } } assessmentData={undefined}      />
+    );
+  }
+
+  if (currentTest === "signal_quality") {
+    return (
+      <SignalQualityTest
+        onBack={() => setCurrentTest(null)}
+        onComplete={handleSignalQualityComplete}
+      />
+    );
+  }
+
   if (currentTest) {
     const testComponents: { [key: string]: React.ReactNode } = {
-      signal_quality: (
-        <SignalQualityTest
-          onBack={() => setCurrentTest(null)}
-          onComplete={(isGood) => {
-            setSignalQualityGood(isGood);
-            setCurrentTest(null);
-          }}
-        />
-      ),
       custom_recording: (
         <CustomRecordingTest
           onBack={() => setCurrentTest(null)}
@@ -85,6 +125,24 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
       ),
       "10min_eyes_closed": (
         <TenMinEyesClosedTest
+          onBack={() => setCurrentTest(null)}
+          onComplete={(data) => {
+            setTestResults(data);
+            setCurrentTest(null);
+          }}
+        />
+      ),
+      eeg_assessment: (
+        <EEGAssessment
+          onBack={() => setCurrentTest(null)}
+          onComplete={(data) => {
+            setTestResults(data);
+            setCurrentTest(null);
+          }}
+        />
+      ),
+      custom_assessment: (
+        <CustomAssessment
           onBack={() => setCurrentTest(null)}
           onComplete={(data) => {
             setTestResults(data);
@@ -136,7 +194,7 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                       <Brain className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-semibold">Neurosity Crown</h3>
+                      <h3 className="font-semibold">{selectedDevice === "neurosity" ? "Neurosity Crown" : selectedDevice === "muse" ? "Muse Headband" : "EEG Headset"}</h3>
                       <p className="text-sm opacity-90">EEG Headset</p>
                     </div>
                   </div>
@@ -146,7 +204,7 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Device Connection</span>
-                  <Switch checked={isConnected} onCheckedChange={handleConnect} />
+                  <Switch checked={false} onCheckedChange={handleConnect} disabled={isConnected} />
                 </div>
                 {isConnected && (
                   <motion.div
@@ -156,9 +214,9 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                   >
                     <div className="flex items-center justify-between text-sm">
                       <span>Signal Quality</span>
-                      <span>{mockEEGData.signal_quality}%</span>
+                      <span>{currentData.signal_quality}%</span>
                     </div>
-                    <Progress value={mockEEGData.signal_quality} className="mt-2 h-2" />
+                    <Progress value={currentData.signal_quality} className="mt-2 h-2" />
                   </motion.div>
                 )}
               </CardContent>
@@ -217,6 +275,8 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                       { id: "alpha_resting_state", label: "Alpha Resting State", color: "bg-blue-100 text-blue-700" },
                       { id: "alpha_reactive_state", label: "Alpha Reactive State", color: "bg-purple-100 text-purple-700" },
                       { id: "10min_eyes_closed", label: "10 Mins Eyes Closed", color: "bg-gray-100 text-gray-700" },
+                      { id: "eeg_assessment", label: "EEG Assessment", color: "bg-yellow-100 text-yellow-700" },
+                      { id: "custom_assessment", label: "Custom Assessment", color: "bg-pink-100 text-pink-700" },
                     ].map((type) => (
                       <Button
                         key={type.id}
@@ -233,7 +293,7 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                 </div>
                 {!isConnected && (
                   <div className="text-center py-4 text-gray-500 text-sm">
-                    Connect your Neurosity Crown to select a test
+                    Connect your {selectedDevice === "neurosity" ? "Neurosity Crown" : selectedDevice === "muse" ? "Muse Headband" : "EEG Headset"} to select a test
                   </div>
                 )}
               </CardContent>
@@ -261,15 +321,15 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
                           <div className="text-blue-600 text-sm font-medium">Focus Score</div>
-                          <div className="text-2xl font-bold text-blue-700">{mockEEGData.focus}/10</div>
+                          <div className="text-2xl font-bold text-blue-700">{currentData.focus}/10</div>
                         </div>
                         <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4">
                           <div className="text-orange-600 text-sm font-medium">Stress Level</div>
-                          <div className="text-2xl font-bold text-orange-700">{mockEEGData.stress}/10</div>
+                          <div className="text-2xl font-bold text-orange-700">{currentData.stress}/10</div>
                         </div>
                       </div>
                       <div className="space-y-3">
-                        {Object.entries(mockEEGData)
+                        {Object.entries(currentData)
                           .slice(1, 5)
                           .map(([key, value]) => (
                             <div key={key} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
@@ -307,7 +367,9 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 mb-4">
                   <p className="text-sm text-gray-700 mb-3">
                     {isConnected
-                      ? "Based on your EEG data, I notice elevated stress levels. Would you like to try a breathing exercise?"
+                      ? `Based on your EEG data from the ${selectedDevice === "neurosity" ? "Neurosity Crown" : "Muse Headband"}, I notice ${
+                          currentData.stress > 5 ? "elevated" : "normal"
+                        } stress levels. Would you like to try a breathing exercise?`
                       : "Connect your device to receive personalized recommendations based on your brain activity."}
                   </p>
                 </div>

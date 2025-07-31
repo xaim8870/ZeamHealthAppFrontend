@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 interface TenMinEyesClosedTestProps {
@@ -8,8 +9,26 @@ interface TenMinEyesClosedTestProps {
 
 const TenMinEyesClosedTest = ({ onBack, onComplete }: TenMinEyesClosedTestProps) => {
   const [isStarted, setIsStarted] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
   const [displayText, setDisplayText] = useState("");
+
+  // Play tone using Web Audio API
+  const playTone = () => {
+    try {
+      if (!window.AudioContext) {
+        console.warn("AudioContext is not supported in this browser.");
+        return;
+      }
+      const ctx = new window.AudioContext();
+      const oscillator = ctx.createOscillator();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(440, ctx.currentTime);
+      oscillator.connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime + 0.2);
+    } catch (error) {
+      console.error("Error playing tone:", error);
+    }
+  };
 
   const handleStart = () => {
     setIsStarted(true);
@@ -19,8 +38,10 @@ const TenMinEyesClosedTest = ({ onBack, onComplete }: TenMinEyesClosedTestProps)
     setTimeout(() => {
       setDisplayText("Close your eyes when you hear the tone in 5 seconds");
       setTimeout(() => {
+        playTone(); // Play first tone
         setDisplayText("Eyes closed - 10 minutes recording in progress");
         setTimeout(() => {
+          playTone(); // Play second tone
           setDisplayText("Open your eyes - Test completed");
           setTimeout(() => {
             onComplete({
@@ -29,6 +50,7 @@ const TenMinEyesClosedTest = ({ onBack, onComplete }: TenMinEyesClosedTestProps)
               testType: "10 Minutes Eyes Closed",
               timestamp: new Date().toISOString()
             });
+            setIsStarted(false); // Allow restarting the test
           }, 2000);
         }, 10000); // Simulate 10 minutes with 10 seconds for demo
       }, 5000);
@@ -39,22 +61,27 @@ const TenMinEyesClosedTest = ({ onBack, onComplete }: TenMinEyesClosedTestProps)
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
       <div className="max-w-4xl mx-auto pb-6">
         {/* Header */}
-        <div className="sticky top-0 bg-white/80 backdrop-blur-lg border-b border-gray-100 z-10 px-4 py-4">
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="sticky top-0 bg-gradient-to-r from-purple-500 to-blue-500 text-white p-4 rounded-t-lg shadow-lg z-10"
+        >
           <div className="flex items-center gap-3">
-            <button 
-              onClick={onBack} 
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            <button
+              onClick={onBack}
+              className="p-2 hover:bg-white/20 rounded-full transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-5 h-5 text-white" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
-                <EyeOff className="w-4 h-4 text-white" />
+              <div className="w-9 h-9 bg-gradient-to-r from-gray-500 to-gray-600 rounded-lg flex items-center justify-center">
+                <EyeOff className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">10 Minutes of Eyes Closed</h1>
+              <h1 className="text-xl font-bold">10 Minutes of Eyes Closed</h1>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <div className="px-4 mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -157,4 +184,4 @@ const TenMinEyesClosedTest = ({ onBack, onComplete }: TenMinEyesClosedTestProps)
   );
 };
 
-export default TenMinEyesClosedTest; // Changed to default export
+export default TenMinEyesClosedTest;
