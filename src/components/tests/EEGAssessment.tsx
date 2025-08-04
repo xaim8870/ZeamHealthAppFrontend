@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ClipboardList } from 'lucide-react';
@@ -16,21 +17,39 @@ const EEGAssessment: React.FC<EEGAssessmentProps> = ({ onBack, onComplete }) => 
   const [otherFactors, setOtherFactors] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showMoodForm, setShowMoodForm] = useState(false);
-  const [moodDetails, setMoodDetails] = useState({ sad: '', worried: '', happy: '' });
+  const [moodDetails, setMoodDetails] = useState({
+    sadInterest: '',
+    sadDepressed: '',
+    depressedInterest: '',
+    depressedDepressed: '',
+    worriedNervous: '',
+    worriedControl: '',
+  });
   const [showHeadbandSelection, setShowHeadbandSelection] = useState(false);
   const [assessmentData, setAssessmentData] = useState<any>({});
 
+  const moodOptions = [
+    { value: 'happy 😊👍', label: 'Happy 😊👍' },
+    { value: 'content 😊🙏', label: 'Content 😊🙏' },
+    { value: 'neutral 😐', label: 'Neutral 😐' },
+    { value: 'worried 😟', label: 'Worried 😟' },
+    { value: 'sad 😢', label: 'Sad 😢' },
+    { value: 'depressed 😔', label: 'Depressed 😔' },
+  ];
+
   const handleMoodChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value, checked } = e.target;
-    setMood((prev) => 
+    setMood((prev) =>
       checked ? [...prev, value] : prev.filter((m) => m !== value)
     );
-    if (checked && (value === 'sad' || value === 'worried' || value === 'happy')) {
+    if (checked && (value === 'sad 😢' || value === 'depressed 😔' || value === 'worried 😟')) {
       setShowMoodForm(true);
+    } else if (!checked && !['sad 😢', 'depressed 😔', 'worried 😟'].some((m) => mood.includes(m) || value === m)) {
+      setShowMoodForm(false);
     }
   };
 
-  const handleMoodDetailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMoodDetailChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
     setMoodDetails((prev) => ({ ...prev, [name]: value }));
   };
@@ -51,51 +70,98 @@ const EEGAssessment: React.FC<EEGAssessmentProps> = ({ onBack, onComplete }) => 
 
   const renderMoodForm = () => {
     if (!showMoodForm) return null;
+    const options = [
+      { value: '0', label: 'Not at all' },
+      { value: '1', label: 'Several days' },
+      { value: '2', label: 'More than half the days' },
+      { value: '3', label: 'Nearly every day' },
+    ];
+
     return (
       <div className="space-y-4 mt-4">
-        {mood.includes('sad') && (
-          <div>
-            <label className="block font-medium text-sm text-gray-700">Why are you sad?</label>
-            <input
-              type="text"
-              name="sad"
-              value={moodDetails.sad}
-              onChange={handleMoodDetailChange}
-              className="w-full mt-1 p-2 border rounded"
-            />
-          </div>
+        {(mood.includes('sad 😢') || mood.includes('depressed 😔')) && (
+          <>
+            <div>
+              <label className="block font-medium text-sm text-gray-700">
+                Over the last 2 weeks, how often have you been bothered by little interest or pleasure in doing things?
+              </label>
+              <select
+                name={mood.includes('sad 😢') ? 'sadInterest' : 'depressedInterest'}
+                value={mood.includes('sad 😢') ? moodDetails.sadInterest : moodDetails.depressedInterest}
+                onChange={handleMoodDetailChange}
+                className="w-full mt-1 p-2 border rounded"
+              >
+                <option value="">Select an option</option>
+                {options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-medium text-sm text-gray-700">
+                Over the last 2 weeks, how often have you been bothered by feeling down, depressed, or hopeless?
+              </label>
+              <select
+                name={mood.includes('sad 😢') ? 'sadDepressed' : 'depressedDepressed'}
+                value={mood.includes('sad 😢') ? moodDetails.sadDepressed : moodDetails.depressedDepressed}
+                onChange={handleMoodDetailChange}
+                className="w-full mt-1 p-2 border rounded"
+              >
+                <option value="">Select an option</option>
+                {options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
         )}
-        {mood.includes('worried') && (
-          <div>
-            <label className="block font-medium text-sm text-gray-700">Why are you worried?</label>
-            <input
-              type="text"
-              name="worried"
-              value={moodDetails.worried}
-              onChange={handleMoodDetailChange}
-              className="w-full mt-1 p-2 border rounded"
-            />
-          </div>
-        )}
-        {mood.includes('happy') && (
-          <div>
-            <label className="block font-medium text-sm text-gray-700">Why are you happy?</label>
-            <input
-              type="text"
-              name="happy"
-              value={moodDetails.happy}
-              onChange={handleMoodDetailChange}
-              className="w-full mt-1 p-2 border rounded"
-            />
-          </div>
+        {mood.includes('worried 😟') && (
+          <>
+            <div>
+              <label className="block font-medium text-sm text-gray-700">
+                Feeling nervous, anxious, or on edge
+              </label>
+              <select
+                name="worriedNervous"
+                value={moodDetails.worriedNervous}
+                onChange={handleMoodDetailChange}
+                className="w-full mt-1 p-2 border rounded"
+              >
+                <option value="">Select an option</option>
+                {options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block font-medium text-sm text-gray-700">
+                Not being able to stop or control worrying
+              </label>
+              <select
+                name="worriedControl"
+                value={moodDetails.worriedControl}
+                onChange={handleMoodDetailChange}
+                className="w-full mt-1 p-2 border rounded"
+              >
+                <option value="">Select an option</option>
+                {options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </>
         )}
       </div>
     );
   };
-
-  if (showHeadbandSelection) {
-    return <HeadbandSelection onBack={onBack} onComplete={onComplete} assessmentData={assessmentData} />;
-  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 flex items-center justify-center mb-20">
@@ -122,15 +188,15 @@ const EEGAssessment: React.FC<EEGAssessmentProps> = ({ onBack, onComplete }) => 
             <div>
               <label className="block font-medium text-sm text-gray-700">Mood (Select all that apply)</label>
               <div className="mt-1 space-y-2">
-                {['happy', 'sad', 'worried'].map((m) => (
-                  <label key={m} className="flex items-center gap-2">
+                {moodOptions.map((m) => (
+                  <label key={m.value} className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      value={m}
-                      checked={mood.includes(m)}
+                      value={m.value}
+                      checked={mood.includes(m.value)}
                       onChange={handleMoodChange}
                     />
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                    {m.label}
                   </label>
                 ))}
               </div>

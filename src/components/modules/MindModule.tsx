@@ -14,9 +14,9 @@ import AlphaReactiveStateTest from "../tests/AlphaReactiveStateTest";
 import TenMinEyesClosedTest from "../tests/10MinsOfEyesClosedTest";
 import CustomRecordingTest from "../tests/CustomRecordingTest";
 import SignalQualityTest from "../tests/SignalQualityTest";
-import EEGAssessment from "../tests/EEEAssessment";
+import EEGAssessment from "../tests/EEGAssessment";
 import CustomAssessment from "../tests/CustomAssessment";
-import HeadbandSelection from "../tests/HeadbandSelection"; // Assume this component exists or will be created
+import HeadbandSelection from "../tests/HeadbandSelection";
 
 interface MindModuleProps {
   onBack: () => void;
@@ -28,7 +28,6 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<any>(null);
   const [signalQualityGood, setSignalQualityGood] = useState<boolean | null>(null);
-  const [showHeadbandSelection, setShowHeadbandSelection] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<"neurosity" | "muse" | null>(null);
 
   // Mock EEG data tailored to each device
@@ -58,38 +57,28 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
   const currentData = selectedDevice ? mockEEGData[selectedDevice] : mockEEGData.neurosity;
 
   const handleConnect = () => {
-    setShowHeadbandSelection(true);
-  };
-
-  const handleTestSelect = (testId: string) => {
-    setCurrentTest(testId);
-  };
-
-  const handleSignalQualityComplete = (isGood: boolean) => {
-    setSignalQualityGood(isGood);
-    if (isGood) {
+    if (!isConnected) {
       setIsConnected(true);
+      setSelectedDevice("neurosity"); // Default to neurosity; change to "muse" if preferred
+      setSignalQualityGood(true); // Assume good signal quality for simplicity
+    } else {
+      setIsConnected(false);
+      setSelectedDevice(null);
+      setSignalQualityGood(null);
     }
-    setShowHeadbandSelection(false);
-    setSelectedDevice(null); // Reset after connection
   };
-
-  if (showHeadbandSelection) {
-    return (
-      <HeadbandSelection
-        onBack={() => setShowHeadbandSelection(false)}
-        onComplete={(device) => {
-          setSelectedDevice(device);
-          setCurrentTest("signal_quality"); // Start signal quality test
-        } } assessmentData={undefined}      />
-    );
-  }
 
   if (currentTest === "signal_quality") {
     return (
       <SignalQualityTest
         onBack={() => setCurrentTest(null)}
-        onComplete={handleSignalQualityComplete}
+        onComplete={(isGood) => {
+          setSignalQualityGood(isGood);
+          if (isGood) {
+            setIsConnected(true);
+          }
+          setCurrentTest(null);
+        }}
       />
     );
   }
@@ -204,7 +193,7 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm">Device Connection</span>
-                  <Switch checked={false} onCheckedChange={handleConnect} disabled={isConnected} />
+                  <Switch checked={isConnected} onCheckedChange={handleConnect} />
                 </div>
                 {isConnected && (
                   <motion.div
@@ -282,7 +271,7 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                         key={type.id}
                         variant="outline"
                         size="sm"
-                        onClick={() => handleTestSelect(type.id)}
+                        onClick={() => setCurrentTest(type.id)}
                         disabled={!isConnected}
                         className={`rounded-xl ${type.color} hover:bg-opacity-80`}
                       >
