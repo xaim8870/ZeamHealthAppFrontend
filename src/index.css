@@ -99,3 +99,6 @@
     @apply bg-background text-foreground;
   }
 }
+.hide-footer footer {
+  display: none !important;
+}
