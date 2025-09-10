@@ -5,6 +5,7 @@ import HeadbandSelection from "./HeadBandSelection";
 import EyesClosedOpen from "./EyesClosedOpen";
 import AlphaRestingStateTest from "./AlphaRestingStateTest";
 import AlphaReactiveStateTest from "./AlphaReactiveStateTest";
+import { ArrowLeft } from "lucide-react";
 
 const EEGAssessmentFlow: React.FC<{ onBack: () => void; onComplete: (data: any) => void }> = ({
   onBack,
@@ -19,6 +20,18 @@ const EEGAssessmentFlow: React.FC<{ onBack: () => void; onComplete: (data: any) 
   const steps = ["questionnaire", "headband", "eyes", "alphaResting", "alphaReactive"];
   const currentStepIndex = steps.indexOf(step);
   const progressPercentage = ((currentStepIndex + 1) / steps.length) * 100;
+
+  // Dynamic header title based on step
+  const getHeaderTitle = () => {
+    switch (step) {
+      case "questionnaire": return "EEG Questionnaire";
+      case "headband": return "Select Headband";
+      case "eyes": return "Eyes Assessment";
+      case "alphaResting": return "Alpha Resting State";
+      case "alphaReactive": return "Alpha Reactive State";
+      default: return "EEG Assessment";
+    }
+  };
 
   // Hide footer on EEG screens
   useEffect(() => {
@@ -49,115 +62,93 @@ const EEGAssessmentFlow: React.FC<{ onBack: () => void; onComplete: (data: any) 
 
   // Animation Variants
   const screenVariants = {
-    initial: { opacity: 0, y: 40 },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -40 },
+    initial: { opacity: 0, x: 100 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -100 },
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start bg-gray-50 relative overflow-hidden">
-      {/* Modern Gradient Triangle Background */}
-      <div className="absolute top-0 left-0 w-0 h-0 border-l-[100vw] border-l-transparent border-b-[220px] border-b-blue-500/20"></div>
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-green-50 relative overflow-hidden">
+      {/* Subtle animated background particles for a modern feel */}
+      <div className="absolute inset-0 pointer-events-none">
+        <motion.div
+          className="absolute top-10 left-10 w-32 h-32 bg-blue-200 rounded-full filter blur-3xl opacity-30"
+          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-20 right-20 w-40 h-40 bg-green-200 rounded-full filter blur-3xl opacity-30"
+          animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.4, 0.3] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+        />
+      </div>
 
-      {/* Header with Company Name */}
-      <div className="w-full text-center mt-6 mb-4 z-10">
-        <motion.h1
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-2xl md:text-3xl font-bold text-blue-700 tracking-wide"
-        >
-          Zeam Health
-        </motion.h1>
-        <p className="text-gray-600 text-sm md:text-base">EEG Brainwave Assessment</p>
+      {/* Unified Header */}
+      <div className="w-full px-4 pt-6 pb-4 bg-white/80 backdrop-blur-md shadow-md z-10 flex items-center justify-between">
+        <button onClick={currentStepIndex === 0 ? onBack : () => setStep(steps[currentStepIndex - 1] as any)} className="p-2 hover:bg-gray-100 rounded-full">
+          <ArrowLeft className="w-6 h-6 text-gray-700" />
+        </button>
+        <div className="text-center flex-1">
+          <motion.h1
+            key={step}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="text-xl font-bold text-blue-800"
+          >
+            {getHeaderTitle()}
+          </motion.h1>
+          <p className="text-sm text-gray-600">Zeam Health EEG Assessment</p>
+        </div>
+        <div className="w-10" /> {/* Spacer for symmetry */}
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full max-w-lg mb-6 z-10 px-4">
-        <div className="bg-gray-200 h-3 rounded-full overflow-hidden shadow-inner">
+      <div className="w-full px-4 mb-4 z-10">
+        <div className="bg-gray-200 h-2 rounded-full overflow-hidden shadow-inner">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${progressPercentage}%` }}
-            transition={{ duration: 0.5 }}
-            className="h-full bg-gradient-to-r from-green-400 via-blue-500 to-purple-500 rounded-full shadow-lg"
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            className="h-full bg-gradient-to-r from-blue-400 to-green-500 rounded-full"
           />
         </div>
-        <p className="text-center mt-2 text-sm text-gray-700 font-semibold">
+        <p className="text-center mt-2 text-xs text-gray-600">
           Step {currentStepIndex + 1} of {steps.length}
         </p>
       </div>
 
       {/* Screen Transition */}
       <AnimatePresence mode="wait">
-        {step === "questionnaire" && (
-          <motion.div
-            key="questionnaire"
-            variants={screenVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.4 }}
-            className="w-full max-w-lg z-10"
-          >
-            <EEGQuestionnaire onBack={onBack} onComplete={handleQuestionnaireComplete} />
-          </motion.div>
-        )}
+        <motion.div
+          key={step}
+          variants={screenVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={{ duration: 0.4, ease: "easeInOut" }}
+          className="flex-1 w-full px-4 flex items-center justify-center z-10"
+        >
+          {step === "questionnaire" && (
+            <EEGQuestionnaire onComplete={handleQuestionnaireComplete} />
+          )}
 
-        {step === "headband" && (
-          <motion.div
-            key="headband"
-            variants={screenVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.4 }}
-            className="w-full max-w-lg z-10"
-          >
-            <HeadbandSelection onBack={() => setStep("questionnaire")} onNext={handleHeadbandComplete} />
-          </motion.div>
-        )}
+          {step === "headband" && (
+            <HeadbandSelection onNext={handleHeadbandComplete} />
+          )}
 
-        {step === "eyes" && (
-          <motion.div
-            key="eyes"
-            variants={screenVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.4 }}
-            className="w-full max-w-lg z-10"
-          >
-            <EyesClosedOpen onBack={() => setStep("headband")} onComplete={handleEyesComplete} />
-          </motion.div>
-        )}
+          {step === "eyes" && (
+            <EyesClosedOpen onComplete={handleEyesComplete} />
+          )}
 
-        {step === "alphaResting" && (
-          <motion.div
-            key="alphaResting"
-            variants={screenVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.4 }}
-            className="w-full max-w-lg z-10"
-          >
-            <AlphaRestingStateTest onBack={() => setStep("eyes")} onComplete={handleAlphaRestingComplete} />
-          </motion.div>
-        )}
+          {step === "alphaResting" && (
+            <AlphaRestingStateTest onComplete={handleAlphaRestingComplete} />
+          )}
 
-        {step === "alphaReactive" && (
-          <motion.div
-            key="alphaReactive"
-            variants={screenVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.4 }}
-            className="w-full max-w-lg z-10"
-          >
-            <AlphaReactiveStateTest onBack={() => setStep("alphaResting")} onComplete={handleAlphaReactiveComplete} />
-          </motion.div>
-        )}
+          {step === "alphaReactive" && (
+            <AlphaReactiveStateTest onComplete={handleAlphaReactiveComplete} />
+          )}
+        </motion.div>
       </AnimatePresence>
     </div>
   );

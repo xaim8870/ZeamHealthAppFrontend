@@ -1,14 +1,13 @@
 // src/components/EEGAssessment/EEGQuestionnaire.tsx
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ClipboardList } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 
 interface EEGQuestionnaireProps {
-  onBack: () => void;
   onComplete: (data: any) => void;
 }
 
-const EEGQuestionnaire: React.FC<EEGQuestionnaireProps> = ({ onBack, onComplete }) => {
+const EEGQuestionnaire: React.FC<EEGQuestionnaireProps> = ({ onComplete }) => {
   const [mood, setMood] = useState<string[]>([]);
   const [wakefulness, setWakefulness] = useState<number | null>(null);
   const [medications, setMedications] = useState(false);
@@ -78,29 +77,29 @@ const EEGQuestionnaire: React.FC<EEGQuestionnaireProps> = ({ onBack, onComplete 
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="space-y-4 mt-4 bg-gray-50 p-4 rounded-lg shadow-inner max-h-[60vh] overflow-y-auto sm:max-w-full"
+          className="space-y-3 mt-4 bg-gray-50 p-4 rounded-xl shadow-inner overflow-y-auto"
         >
           {mood.includes('sad 😢') && (
             <>
-              <div className="w-full">
-                <label className="block text-sm font-medium">Little interest or pleasure in doing things?</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Little interest or pleasure in doing things?</label>
                 <select
                   name="sadInterest"
                   value={moodDetails.sadInterest}
                   onChange={handleMoodDetailChange}
-                  className="w-full mt-1 p-2 border rounded"
+                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select</option>
                   {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
-              <div className="w-full">
-                <label className="block text-sm font-medium">Feeling down, depressed, or hopeless?</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Feeling down, depressed, or hopeless?</label>
                 <select
                   name="sadDepressed"
                   value={moodDetails.sadDepressed}
                   onChange={handleMoodDetailChange}
-                  className="w-full mt-1 p-2 border rounded"
+                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select</option>
                   {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -111,25 +110,25 @@ const EEGQuestionnaire: React.FC<EEGQuestionnaireProps> = ({ onBack, onComplete 
 
           {mood.includes('depressed 😔') && (
             <>
-              <div className="w-full">
-                <label className="block text-sm font-medium">Loss of interest or pleasure in daily activities?</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Loss of interest or pleasure in daily activities?</label>
                 <select
                   name="depressedInterest"
                   value={moodDetails.depressedInterest}
                   onChange={handleMoodDetailChange}
-                  className="w-full mt-1 p-2 border rounded"
+                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select</option>
                   {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
-              <div className="w-full">
-                <label className="block text-sm font-medium">Feeling hopeless or worthless?</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Feeling hopeless or worthless?</label>
                 <select
                   name="depressedDepressed"
                   value={moodDetails.depressedDepressed}
                   onChange={handleMoodDetailChange}
-                  className="w-full mt-1 p-2 border rounded"
+                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select</option>
                   {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -140,25 +139,25 @@ const EEGQuestionnaire: React.FC<EEGQuestionnaireProps> = ({ onBack, onComplete 
 
           {mood.includes('worried 😟') && (
             <>
-              <div className="w-full">
-                <label className="block text-sm font-medium">Feeling nervous, anxious, or on edge?</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Feeling nervous, anxious, or on edge?</label>
                 <select
                   name="worriedNervous"
                   value={moodDetails.worriedNervous}
                   onChange={handleMoodDetailChange}
-                  className="w-full mt-1 p-2 border rounded"
+                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select</option>
                   {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
               </div>
-              <div className="w-full">
-                <label className="block text-sm font-medium">Not being able to stop worrying?</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Not being able to stop worrying?</label>
                 <select
                   name="worriedControl"
                   value={moodDetails.worriedControl}
                   onChange={handleMoodDetailChange}
-                  className="w-full mt-1 p-2 border rounded"
+                  className="w-full mt-1 p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select</option>
                   {options.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -172,66 +171,61 @@ const EEGQuestionnaire: React.FC<EEGQuestionnaireProps> = ({ onBack, onComplete 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 p-4 flex items-center justify-center">
-      <div className="w-full max-w-lg">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-green-500 to-blue-500 text-white p-4 rounded-lg shadow-lg mb-4 flex items-center"
-        >
-          <button onClick={onBack} className="p-2 hover:bg-white/20 rounded-full">
-            <ArrowLeft className="w-6 h-6 text-white" />
-          </button>
-          <ClipboardList className="ml-2 w-6 h-6" />
-          <h1 className="ml-2 text-xl font-bold">EEG Questionnaire</h1>
-        </motion.div>
+    <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-6 space-y-4 overflow-y-auto">
+      <div className="flex items-center justify-center mb-2">
+        <ClipboardList className="w-6 h-6 text-blue-600 mr-2" />
+        <h2 className="text-lg font-semibold text-gray-800">Tell us about your current state</h2>
+      </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-lg space-y-6">
-          <div>
-            <label className="block font-medium mb-2">Select Mood</label>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {moodOptions.map((m) => (
-                <motion.div
-                  key={m.value}
-                  onClick={() => handleMoodChange(m.value)}
-                  whileHover={{ scale: 1.05 }}
-                  className={`p-3 rounded-lg text-white text-center cursor-pointer bg-gradient-to-r ${m.color} ${
-                    mood.includes(m.value) ? 'ring-4 ring-indigo-300' : ''
-                  }`}
-                >
-                  {m.label}
-                </motion.div>
-              ))}
-            </div>
-            {renderMoodForm()}
-          </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">How's your mood today?</label>
+        <div className="grid grid-cols-2 gap-3">
+          {moodOptions.map((m) => (
+            <motion.div
+              key={m.value}
+              onClick={() => handleMoodChange(m.value)}
+              whileHover={{ scale: 1.05 }}
+              className={`p-3 rounded-xl text-white text-center cursor-pointer bg-gradient-to-r ${m.color} shadow-md ${
+                mood.includes(m.value) ? 'ring-2 ring-offset-2 ring-blue-500' : ''
+              }`}
+            >
+              {m.label}
+            </motion.div>
+          ))}
+        </div>
+        {renderMoodForm()}
+      </div>
 
-          <div>
-            <label className="block font-medium">Wakefulness: {wakefulness ?? "Not Selected"}</label>
-            <input type="range" min="1" max="10" value={wakefulness ?? 5} onChange={(e) => setWakefulness(Number(e.target.value))} className="w-full" />
-          </div>
-
-          <div>
-            <label className="flex items-center gap-2 font-medium">
-              <input type="checkbox" checked={medications} onChange={(e) => setMedications(e.target.checked)} />
-              Took medications impacting EEG today
-            </label>
-          </div>
-
-          <div>
-            <label className="block font-medium">Focus Level: {focusLevel ?? "Not Selected"}</label>
-            <input type="range" min="1" max="10" value={focusLevel ?? 5} onChange={(e) => setFocusLevel(Number(e.target.value))} className="w-full" />
-          </div>
-
-          <div>
-            <label className="block font-medium">Other Factors</label>
-            <textarea value={otherFactors} onChange={(e) => setOtherFactors(e.target.value)} placeholder="e.g., caffeine, stress, sleep..." className="w-full p-2 border rounded" />
-          </div>
-
-          <button onClick={handleSubmit} disabled={!isFormValid()}
-            className={`w-full py-2 rounded-lg transition ${isFormValid() ? 'bg-gradient-to-r from-green-500 to-blue-500 text-white' : 'bg-gray-300 text-gray-500'}`}>
-            Start EEG Process
-          </button>
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Wakefulness Level: {wakefulness ?? "Select"}</label>
+        <input type="range" min="1" max="10" value={wakefulness ?? 5} onChange={(e) => setWakefulness(Number(e.target.value))} className="w-full accent-blue-500" />
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Drowsy</span><span>Alert</span>
         </div>
       </div>
+
+      <div className="flex items-center">
+        <input type="checkbox" id="medications" checked={medications} onChange={(e) => setMedications(e.target.checked)} className="w-4 h-4 accent-blue-500" />
+        <label htmlFor="medications" className="ml-2 text-sm text-gray-700">Took medications affecting EEG today</label>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Focus Level: {focusLevel ?? "Select"}</label>
+        <input type="range" min="1" max="10" value={focusLevel ?? 5} onChange={(e) => setFocusLevel(Number(e.target.value))} className="w-full accent-blue-500" />
+        <div className="flex justify-between text-xs text-gray-500">
+          <span>Scattered</span><span>Focused</span>
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Other Factors (e.g., caffeine, stress)</label>
+        <textarea value={otherFactors} onChange={(e) => setOtherFactors(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" rows={2} />
+      </div>
+
+      <button onClick={handleSubmit} disabled={!isFormValid()}
+        className={`w-full py-3 rounded-xl transition duration-300 ${isFormValid() ? 'bg-gradient-to-r from-blue-500 to-green-500 text-white shadow-md hover:shadow-lg' : 'bg-gray-300 text-gray-500'}`}>
+        Proceed to Headband
+      </button>
     </div>
   );
 };

@@ -1,23 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, RotateCcw, Brain } from "lucide-react";
+import { RotateCcw, Brain } from "lucide-react";
 
 interface AlphaReactiveProps {
-  onBack: () => void;
   onComplete: () => void;
 }
 
 const steps = [
-  "Tone will play: close eyes at the tone",
-  "Close your eyes",
+  "Listen for tone: Close eyes when it plays",
+  "Close your eyes now",
   "Open your eyes",
   "Close your eyes",
-  "Watch the image",
+  "Focus on the image",
   "Close your eyes",
   "Open your eyes",
 ];
 
-const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({ onBack, onComplete }) => {
+const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({ onComplete }) => {
   const [started, setStarted] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(10);
@@ -38,58 +37,57 @@ const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({ onBack, onComple
       }
     }
     return () => clearInterval(timer);
-  }, [started, timeLeft, stepIndex]);
+  }, [started, timeLeft, stepIndex, onComplete]);
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-md">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-4 shadow-md"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl p-5 shadow-lg"
       >
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <Brain className="w-5 h-5 text-blue-500" /> Alpha Reactive State
-          </h2>
+        <div className="flex items-center justify-center mb-4">
+          <Brain className="w-5 h-5 text-blue-600 mr-2" />
+          <h2 className="text-lg font-semibold text-gray-800">Reactive State Test</h2>
         </div>
 
         {/* Content Box */}
-        <div className="h-48 bg-gray-100 rounded-lg flex flex-col items-center justify-center relative">
+        <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex flex-col items-center justify-center relative shadow-inner">
           <AnimatePresence>
             {!completed && (
-              <motion.span
+              <motion.div
                 key={steps[stepIndex]}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="text-xl font-semibold text-gray-800 text-center px-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="text-center px-4"
               >
-                {steps[stepIndex]}
-              </motion.span>
+                <p className="text-lg font-semibold text-gray-800">{steps[stepIndex]}</p>
+                {stepIndex === 4 && (
+                  <img src="/path/to/calming-image.jpg" alt="Calming scene" className="mt-2 w-32 h-32 rounded-lg mx-auto" /> // Add a real calming image asset
+                )}
+              </motion.div>
             )}
             {completed && (
-              <motion.span
-                key="done"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-xl text-green-500 font-bold"
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center text-green-600 font-semibold"
               >
-                Reactive Test Completed!
-              </motion.span>
+                <p className="text-lg">Reactive Test Complete!</p>
+                <p className="text-sm text-gray-600">Well done responding to cues.</p>
+              </motion.div>
             )}
           </AnimatePresence>
           {started && !completed && (
-            <div className="absolute top-2 right-2 bg-blue-500 text-white px-2 py-1 rounded-full text-xs">
-              {timeLeft}s
+            <div className="absolute top-3 right-3 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
+              {timeLeft}s left
             </div>
           )}
         </div>
 
         {/* Buttons */}
-        <div className="mt-4 flex gap-3">
+        <div className="mt-5 flex gap-3">
           {!started && !completed && (
             <button
               onClick={() => {
@@ -97,9 +95,9 @@ const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({ onBack, onComple
                 setStepIndex(0);
                 setTimeLeft(10);
               }}
-              className="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600"
+              className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white py-3 rounded-xl shadow-md hover:shadow-lg transition"
             >
-              Start
+              Begin Test
             </button>
           )}
           {completed && (
@@ -111,15 +109,15 @@ const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({ onBack, onComple
                   setTimeLeft(10);
                   setStarted(false);
                 }}
-                className="flex-1 bg-gray-200 text-gray-800 py-2 rounded hover:bg-gray-300 flex items-center justify-center gap-1"
+                className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition"
               >
-                <RotateCcw className="w-4 h-4" /> Reset
+                <RotateCcw className="w-4 h-4" /> Retry
               </button>
               <button
                 onClick={onComplete}
-                className="flex-1 bg-green-500 text-white py-2 rounded hover:bg-green-600"
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 rounded-xl shadow-md hover:shadow-lg transition"
               >
-                Continue
+                Finish Assessment
               </button>
             </>
           )}
