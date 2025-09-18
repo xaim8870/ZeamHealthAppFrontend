@@ -137,8 +137,8 @@ const EyesClosedOpen: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
         </div>
 
         {/* EEG Display */}
-        <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-700">
-          <div className="px-3 py-2 bg-gray-800 text-green-400 text-xs font-mono uppercase tracking-wider">
+        <div className=" rounded-xl overflow-hidden border border-gray-700">
+          <div className="px-3 py-2 text-green-900 text-xs font-mono uppercase tracking-wider">
             EEG Channels Simulation
           </div>
           <svg viewBox="0 0 400 140" className="w-full h-32">

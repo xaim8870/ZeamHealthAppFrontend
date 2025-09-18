@@ -13,6 +13,7 @@ import ActivityModule from "@/components/modules/ActivityModule";
 import SleepModule from "@/components/modules/SleepModule";
 import ProviderDashboard from "@/components/ProviderDashboard";
 import ChatAssistant from "@/components/ChatAssistant";
+import ProfileScreen from "@/pages/ProfileScreen";
 import Footer from "@/components/Footer";
 
 // Import global styles
@@ -84,6 +85,10 @@ const AppLayout = () => {
         <Route
           path="/"
           element={<Navigate to={isAuthenticated ? "/home" : "/login"} />}
+        />
+        <Route
+          path="/profile"
+          element={isAuthenticated ? <ProfileScreen /> : <Navigate to="/login" />}
         />
         <Route path="*" element={<NotFound />} />
       </Routes>
