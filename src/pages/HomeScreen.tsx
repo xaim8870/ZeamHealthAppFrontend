@@ -6,7 +6,6 @@ import {
   Users,
   Sun,
   Moon,
-  Brain,
   Activity,
   Bell,
   Menu,
@@ -17,7 +16,7 @@ import HealthTriangle from "../components/HealthTriangle";
 import NeuralPatternBackground from "../components/NeuralPatternBackground";
 import SummaryCard from "../components/SummaryCard";
 import InsightsChart from "../components/InsightsChart";
-import HamburgerMenu from "../components/HamburgerMenu"; // ✅ Import
+import HamburgerMenu from "../components/HamburgerMenu";
 import { useNavigate } from "react-router-dom";
 import Highlights from "../components/Highlights";
 import type { ModuleType } from "./Index";
@@ -28,7 +27,7 @@ interface HomeScreenProps {
 
 const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false); // ✅ moved inside component
+  const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const toggleTheme = () => {
@@ -137,9 +136,48 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
           </p>
         </motion.div>
 
-        {/* Summary Section */}
-        {/* ... keep your SummaryCards here ... */}
-
+        {/* ✅ Summary Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="grid grid-cols-2 gap-4 mb-4"
+        >
+          <SummaryCard
+            title="Readiness"
+            time="5 mins ago"
+            icon={<HeartPulse className="w-5 h-5 text-gray-100" />}
+            stats={[
+              { label: "Respiratory rate", value: "20bpm" },
+              { label: "Body temperature", value: "37°C" },
+            ]}
+            gradientLight="from-blue-200 to-indigo-200"
+            gradientDark="from-red-600 to-indigo-700"
+          />
+          <SummaryCard
+            title="Sleep"
+            time="10 hours ago"
+            icon={<MoonStar className="w-5 h-5 text-gray-100" />}
+            stats={[
+              { label: "Sleep efficiency", value: "70" },
+              { label: "Time in bed", value: "8hr 12min" },
+              { label: "Resting heart rate", value: "80bpm" },
+            ]}
+            gradientLight="from-yellow-200 to-amber-200"
+            gradientDark="from-yellow-700 to-amber-800"
+          />
+          <SummaryCard
+            title="Activity"
+            time="3 mins ago"
+            icon={<Activity className="w-5 h-5 text-gray-100" />}
+            stats={[
+              { label: "Goal progress", value: "84" },
+              { label: "Steps", value: "8,400" },
+            ]}
+            gradientLight="from-red-200 to-pink-200"
+            gradientDark="from-red-600 to-pink-700"
+          />
+        </motion.div>
         {/* Insights */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -149,6 +187,8 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
         >
           <InsightsChart data={insightsData} overallScore={72} />
         </motion.div>
+
+        {/* Highlights */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -159,13 +199,69 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
         </motion.div>
 
         {/* AI EEG Assistant */}
-        {/* ... same as before ... */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mb-6 p-4 rounded-xl shadow-md bg-white dark:bg-gray-800"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-gray-800 dark:text-white">
+              AI EEG Assistant
+            </h3>
+            <Button
+              onClick={onChatOpen}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Chat
+            </Button>
+          </div>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Ask about your brain activity, sleep, or fitness insights.
+          </p>
+        </motion.div>
 
-        {/* Alert */}
-        {/* ... same as before ... */}
+        {/* Alerts */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mb-6 p-4 rounded-xl shadow-md bg-red-100 dark:bg-red-900/40"
+        >
+          <div className="flex items-center gap-2">
+            <Bell className="w-5 h-5 text-red-600 dark:text-red-400" />
+            <h3 className="font-semibold text-red-700 dark:text-red-300">
+              Alerts
+            </h3>
+          </div>
+          <p className="mt-1 text-sm text-red-700 dark:text-red-300">
+            High stress detected in your EEG data. Consider a break.
+          </p>
+        </motion.div>
 
         {/* Provider Dashboard */}
-        {/* ... same as before ... */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="p-4 rounded-xl shadow-md bg-white dark:bg-gray-800"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-gray-800 dark:text-white">
+              Provider Dashboard
+            </h3>
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              View
+            </Button>
+          </div>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            Track patient progress and EEG data insights in one place.
+          </p>
+        </motion.div>
       </div>
     </div>
   );
