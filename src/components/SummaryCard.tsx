@@ -30,7 +30,7 @@ const SummaryCard = ({
         className={`p-4 rounded-2xl 
           bg-gradient-to-br ${gradientLight} dark:${gradientDark}
           shadow-lg hover:shadow-2xl transition-shadow duration-300
-          border border-white/20 dark:border-white/10
+          
           text-gray-800 dark:text-white`}
       >
         {/* Header */}
