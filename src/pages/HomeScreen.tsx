@@ -19,6 +19,10 @@ import InsightsChart from "../components/InsightsChart";
 import HamburgerMenu from "../components/HamburgerMenu";
 import { useNavigate } from "react-router-dom";
 import Highlights from "../components/Highlights";
+import TriangleChart from "@/components/TriangleChart";
+import ActionButtons from "@/components/ActionButton";
+import DailyJournal from "@/components/DailyJournal";
+import CircularChart from "@/components/CircularChart";
 import type { ModuleType } from "./Index";
 
 interface HomeScreenProps {
@@ -136,7 +140,7 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
           </p>
         </motion.div>
 
-        {/* ✅ Summary Section */}
+        {/* ✅ Summary Section 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -177,7 +181,37 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
             gradientLight="from-red-200 to-pink-200"
             gradientDark="from-red-600 to-pink-700"
           />
-        </motion.div>
+        </motion.div> */}
+        {/* Triangles Section 
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex justify-around mb-6"
+          >
+            <TriangleChart label="Sleep Performance" value={74} color="#3b82f6" />
+            <TriangleChart label="Readiness Status" value={85} color="#10b981" />
+            <TriangleChart label="Neuro Balance" value={63} color="#f97316" />
+          </motion.div> */}
+          {/* Futuristic Circular Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="flex justify-around mb-6"
+          >
+            <CircularChart label="Sleep Performance" value={74} color="#3b82f6" />
+            <CircularChart label="Readiness Status" value={85} color="#10b981" />
+            <CircularChart label="Neuro Balance" value={63} color="#f97316" />
+          </motion.div>
+
+
+          {/* Action Buttons */}
+          <ActionButtons />
+
+          {/* Daily Journal */}
+          <DailyJournal />
+
         {/* Insights */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
