@@ -68,7 +68,7 @@ const HealthTriangle = ({ onSelect, className }: HealthTriangleProps) => {
 
   return (
     <motion.div
-      className={`relative w-80 h-80 flex items-center justify-center mx-auto ${className}`}
+      className={`relative w-80 h-80 flex items-center justify-center p-0 mx-auto ${className}`}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
@@ -164,7 +164,7 @@ const HealthTriangle = ({ onSelect, className }: HealthTriangleProps) => {
         return (
           <motion.div
             key={module.id}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20"
+            className="absolute transform -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20 mb-0"
             style={{ left: module.position.x, top: module.position.y }}
             onClick={() => onSelect(module.id as any)}
           >
@@ -190,7 +190,7 @@ const HealthTriangle = ({ onSelect, className }: HealthTriangleProps) => {
 
       {/* 🌐 Center Orb */}
       <motion.div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-30 mb-0"
         animate={{ rotate: 360 }}
         transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
       >

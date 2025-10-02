@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
+import { DeviceProvider } from "./context/DeviceContext";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,6 +16,7 @@ import ProviderDashboard from "@/components/ProviderDashboard";
 import ChatAssistant from "@/components/ChatAssistant";
 import ProfileScreen from "@/pages/ProfileScreen";
 import Footer from "@/components/Footer";
+import SignalQualityScreen from "./pages/SignalQualityScreen";
 
 // Import global styles
 import "./styles/global.css";
@@ -45,6 +47,7 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen dark:bg-black" id="app-root">
+      <DeviceProvider>
       <Routes>
         <Route
           path="/login"
@@ -79,6 +82,10 @@ const AppLayout = () => {
           element={isAuthenticated ? <ProviderDashboard onBack={() => navigate("/home")} /> : <Navigate to="/login" />}
         />
         <Route
+          path="/signal-quality"
+          element={isAuthenticated ? <SignalQualityScreen /> : <Navigate to="/login" />}
+        />
+        <Route
           path="/chat"
           element={isAuthenticated ? <ChatAssistant isOpen={true} onClose={() => navigate("/home")} /> : <Navigate to="/login" />}
         />
@@ -92,6 +99,7 @@ const AppLayout = () => {
         />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </DeviceProvider>
       <Footer />
     </div>
   );

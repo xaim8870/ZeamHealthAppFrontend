@@ -65,8 +65,15 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
   ];
 
   return (
-    <div className="min-h-screen relative pb-20 dark:bg-gradient-to-br dark:from-black dark:via-gray-900 dark:to-cyan-900 bg-gradient-to-b from-blue-50 via-white to-indigo-50">
-      <NeuralPatternBackground className="absolute inset-0 z-[-1]" opacity={0.12} />
+    <div className=" flex justify-center items-start  min-h-screen  bg-gray-100 dark:bg-black">
+      <div className="relative min-h-screen w-full max-w-md pb-20 
+                  dark:bg-gradient-to-br dark:from-black dark:via-gray-900 dark:to-cyan-900 
+                  bg-gradient-to-b from-blue-50 via-white to-indigo-50 shadow-sm top-3 border border-gray-200 dark:border-gray-700 rounded-3xl overflow-hidden">
+      <NeuralPatternBackground 
+  className="absolute inset-0 w-full h-full z-[1] pointer-events-none"
+  opacity={0.5}
+/>
+
 
       {/* ✅ Hamburger Menu + Overlay */}
       <HamburgerMenu
@@ -102,9 +109,16 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
             <Menu className="w-6 h-6" />
           </Button>
 
-          <h1 className="text-xl font-bold tracking-wide bg-gradient-to-r from-indigo-600 to-cyan-600 bg-clip-text text-transparent dark:from-indigo-400 dark:to-cyan-400">
-            ZEAM HEALTH
-          </h1>
+          <h1
+  className="
+    font-orbitron text-2xl md:text-2xl font-extrabold tracking-widest
+    text-gray-800 dark:text-white
+    text-glow-teal animate-pulse-glow
+  "
+>
+  ZEAM HEALTH
+</h1>
+
 
           <Button
             variant="ghost"
@@ -131,11 +145,11 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7 }}
-          className="flex flex-col items-center justify-center mb-8"
+          className="relative flex flex-col items-center justify-center mb-0 p-0 z-[20] ml-2"
         >
           <HealthTriangle onSelect={handleModuleSelect} className="theme-exempt" />
-          <p className="text-sm mt-3 text-gray-600 dark:text-gray-400 text-center">
-            Tap any edge to explore{" "}
+          <p className="text-sm mt-0 text-gray-600 dark:text-gray-400 text-center">
+            
             <span className="font-semibold">Body, Mind, Activity, Sleep</span>
           </p>
         </motion.div>
@@ -296,6 +310,7 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
             Track patient progress and EEG data insights in one place.
           </p>
         </motion.div>
+      </div>
       </div>
     </div>
   );

@@ -18,6 +18,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+    orbitron: ["Orbitron", "sans-serif"],
+  },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -69,6 +72,7 @@ export default {
           purple: "#7B68EE",
           yellow: "#F8E71C",
         },
+        
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -114,6 +118,7 @@ export default {
       borderColor: ["bw-mode"],
       backgroundImage: ["bw-mode"],
       opacity: ["bw-mode"],
+
     },
   },
 } satisfies Config;
