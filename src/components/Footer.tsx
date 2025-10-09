@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Home, Heart, Brain, Activity, Moon, User } from "lucide-react";
+import { Home, Heart, Brain, Activity, Moon, User, MessageCircle } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import type { ModuleType } from "@/pages/Index";
 
@@ -13,6 +13,7 @@ const Footer = () => {
     { label: "Mind", module: "mind" as ModuleType, icon: Brain, color: "text-green-500", path: "/mind" },
     { label: "Activity", module: "activity" as ModuleType, icon: Activity, color: "text-orange-500", path: "/activity" },
     { label: "Sleep", module: "sleep" as ModuleType, icon: Moon, color: "text-purple-500", path: "/sleep" },
+    { label: "Chat", module: "chat" as ModuleType, icon: MessageCircle, color: "text-sky-500", path: "/chat" }, // 🟢 New Chat button
     { label: "Profile", module: "profile" as ModuleType, icon: User, color: "text-pink-500", path: "/profile" },
   ];
 

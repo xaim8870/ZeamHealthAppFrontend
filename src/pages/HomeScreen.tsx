@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Hand, Flame } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
@@ -131,15 +132,19 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
         </motion.div>
 
         {/* Greeting */}
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-            Hi David 👋
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Welcome back! You’ve burned <span className="font-bold">52</span> calories today 🔥
-          </p>
-        </div>
+        <div>
+      <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+        Hi David
+        <Hand className="w-3 h-3 text-gray-500" />
 
+      </h2>
+      <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1 mt-1">
+        Welcome back! You’ve burned 
+        <span className="font-bold text-gray-900 dark:text-gray-100 mx-1">52</span> 
+        calories today 
+        <Flame className="w-6 h-6 text-orange-700 mb-2" />
+      </p>
+    </div>
         {/* Triangle Hub */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
