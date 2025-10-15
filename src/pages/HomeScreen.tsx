@@ -24,6 +24,7 @@ import TriangleChart from "@/components/TriangleChart";
 import ActionButtons from "@/components/ActionButton";
 import DailyJournal from "@/components/DailyJournal";
 import CircularChart from "@/components/CircularChart";
+import NeuralBackground from "@/components/NeuralBackground";
 import type { ModuleType } from "./Index";
 
 interface HomeScreenProps {
@@ -70,10 +71,13 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
       <div className="relative min-h-screen w-full max-w-md pb-20 
                   dark:bg-gradient-to-br dark:from-black dark:via-gray-900 dark:to-cyan-900 
                   bg-gradient-to-b from-blue-50 via-white to-indigo-50 shadow-sm top-3 border border-gray-200 dark:border-gray-700 rounded-3xl overflow-hidden">
-      <NeuralPatternBackground 
+     {/** <NeuralPatternBackground 
   className="absolute inset-0 w-full h-full z-[1] pointer-events-none"
   opacity={0.5}
-/>
+/>  */}
+<div className="absolute inset-0 z-10">
+    <NeuralBackground />
+  </div>
 
 
       {/* ✅ Hamburger Menu + Overlay */}

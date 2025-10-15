@@ -22,7 +22,7 @@ import SignalQualityScreen from "./pages/SignalQualityScreen";
 import SplashScreen from "./pages/SplashScreen";
 import Chat from "./pages/Chat";
 import "./styles/global.css";
-
+import NeuralBackground from "./components/NeuralBackground";
 const useAuth = () => {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
   const login = (email: string, password: string) => {
@@ -45,6 +45,7 @@ const AppRoutes = () => {
   return (
     <div className="min-h-screen dark:bg-black transition-colors duration-300" id="app-root">
       <DeviceProvider>
+        
         <Routes>
           <Route path="/login" element={<AuthPages isSignup={false} onLogin={login} />} />
           <Route path="/signup" element={<AuthPages isSignup={true} onLogin={login} />} />
