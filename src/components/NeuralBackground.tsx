@@ -1,11 +1,11 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useEffect, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-function NeuralNetwork() {
+function NeuralNetwork({ isDarkMode }: { isDarkMode: boolean }) {
   const group = useRef<THREE.Group>(null!);
 
-  // create 500 nodes with random positions
+  // Create 500 nodes with random positions
   const nodes = useMemo(
     () =>
       new Array(500).fill(0).map(() => ({
@@ -18,30 +18,33 @@ function NeuralNetwork() {
     []
   );
 
-  // rotation for subtle motion
+  // Rotate slowly for subtle motion
   useFrame(() => {
     group.current.rotation.y += 0.0008;
     group.current.rotation.x += 0.0003;
   });
 
+  // 🎨 Colors depending on theme
+  const nodeColor = isDarkMode ? "#00ffff" : "#555555";
+  const lineColor = isDarkMode ? "#00ffff" : "#999999";
+
   return (
     <group ref={group}>
-      {/* glowing neural spheres */}
+      {/* Glowing neural spheres */}
       {nodes.map((node, i) => (
         <mesh key={i} position={node.position}>
           <sphereGeometry args={[0.06, 10, 10]} />
           <meshStandardMaterial
-            emissive="#00ffff"
-            emissiveIntensity={1.5}
-            color="#0ff"
+            emissive={isDarkMode ? nodeColor : "#444444"}
+            emissiveIntensity={isDarkMode ? 1.5 : 0.4}
+            color={nodeColor}
           />
         </mesh>
       ))}
 
-      {/* complex network connections */}
+      {/* Complex network connections */}
       {nodes.map((node, i) => {
         const lines = [];
-        // connect each node to 2–5 nearby nodes
         const connections = Math.floor(Math.random() * 3) + 2;
         for (let j = 0; j < connections; j++) {
           const target = nodes[Math.floor(Math.random() * nodes.length)].position;
@@ -56,8 +59,8 @@ function NeuralNetwork() {
                   new THREE.Line(
                     geometry,
                     new THREE.LineBasicMaterial({
-                      color: "#00ffff",
-                      opacity: 0.15 + Math.random() * 0.15,
+                      color: lineColor,
+                      opacity: isDarkMode ? 0.25 : 0.15,
                       transparent: true,
                     })
                   )
@@ -73,14 +76,38 @@ function NeuralNetwork() {
 }
 
 export default function NeuralBackground() {
+  const [isDarkMode, setIsDarkMode] = useState(
+    document.documentElement.classList.contains("dark")
+  );
+
+  // 🧠 Automatically react to dark/light mode toggle
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  // 🎨 Background and fog colors for both themes
+  const backgroundColor = isDarkMode ? "#010a16" : "#f2f2f2"; // gray for light mode
+  const fogColor = isDarkMode ? "#010a16" : "#d9d9d9"; // softer gray
+
   return (
     <div className="fixed inset-0 w-full h-full z-0">
       <Canvas camera={{ position: [0, 0, 20], fov: 65 }}>
-        <color attach="background" args={["#010a16"]} />
-        <fog attach="fog" args={["#010a16", 10, 40]} />
-        <ambientLight intensity={0.6} />
-        <pointLight position={[10, 10, 10]} intensity={1.2} color="#00ffff" />
-        <NeuralNetwork />
+        <color attach="background" args={[backgroundColor]} />
+        <fog attach="fog" args={[fogColor, 10, 40]} />
+        <ambientLight intensity={isDarkMode ? 0.6 : 0.8} />
+        <pointLight
+          position={[10, 10, 10]}
+          intensity={isDarkMode ? 1.2 : 0.8}
+          color={isDarkMode ? "#00ffff" : "#aaaaaa"}
+        />
+        <NeuralNetwork isDarkMode={isDarkMode} />
       </Canvas>
     </div>
   );

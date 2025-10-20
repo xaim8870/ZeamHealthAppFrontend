@@ -68,7 +68,7 @@ const EEGAssessmentFlow: React.FC<{ onBack: () => void; onComplete: (data: any) 
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 via-white to-green-50 relative overflow-hidden">
+    <div className="min-h-screen items-center flex flex-col bg-gradient-to-br from-blue-50 via-white to-green-50 relative overflow-hidden ">
       {/* Subtle animated background particles for a modern feel */}
       <div className="absolute inset-0 pointer-events-none">
         <motion.div
