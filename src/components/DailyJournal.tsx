@@ -15,20 +15,39 @@ const DailyJournal = () => {
     <motion.div
       initial={{ opacity: 0, y: 30, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.5 }}
-      className="relative p-5 rounded-2xl mt-6 mb-4 
-        bg-white/30 dark:bg-gray-900/40 
-        backdrop-blur-lg border border-white/20 dark:border-gray-700/50 
-        shadow-lg hover:shadow-[0_0_16px_rgba(56,189,248,0.4)] 
-        transition-all"
+      whileHover={{ scale: 1.02 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="relative p-6 rounded-2xl mt-6 mb-4 
+                 bg-gradient-to-br from-white/20 via-gray-200/10 to-gray-300/20 
+                 dark:from-gray-800/40 dark:via-gray-700/40 dark:to-gray-900/40
+                 backdrop-blur-2xl border border-white/30 dark:border-gray-600/30 
+                 shadow-[0_0_25px_rgba(255,255,255,0.05)] 
+                 hover:shadow-[0_0_35px_rgba(255,255,255,0.15)]
+                 transition-all duration-500"
     >
-      {/* Header with icon */}
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold text-lg bg-gradient-to-r from-indigo-500 to-cyan-400 bg-clip-text text-transparent">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <h3
+          className="font-semibold text-lg tracking-wide 
+                     text-gray-800 dark:text-gray-100"
+        >
           Daily Journal
         </h3>
-        <div className="p-2 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500 text-white shadow-md">
-          <PenLine className="w-4 h-4" />
+
+        {/* 🖋️ Glassy Icon */}
+        <div
+          className="p-2 rounded-full 
+                     backdrop-blur-xl 
+                     bg-gradient-to-br from-white/20 via-gray-400/20 to-gray-500/30
+                     border border-white/30 dark:border-gray-500/40
+                     shadow-inner shadow-white/10
+                     flex items-center justify-center"
+        >
+          <PenLine
+            className="w-4 h-4 text-white"
+            stroke="white"
+            strokeWidth={2.2}
+          />
         </div>
       </div>
 
@@ -38,23 +57,25 @@ const DailyJournal = () => {
         onChange={(e) => setEntry(e.target.value)}
         placeholder="Reflect on your day..."
         className="w-full p-3 text-sm rounded-xl border 
-          border-gray-300 dark:border-gray-600 
-          bg-white/60 dark:bg-gray-800/70 
-          text-gray-800 dark:text-gray-100 
-          placeholder-gray-400 dark:placeholder-gray-500
-          focus:outline-none focus:ring-2 focus:ring-cyan-400 
-          transition-all resize-none"
+                   border-white/20 dark:border-gray-900
+                   bg-gradient-to-br from-white/20 via-gray-200/10 to-gray-300/20 
+                   dark: bg-gray-900
+                   backdrop-blur-lg text-gray-800 dark:text-gray-100
+                   placeholder-gray-400 dark:placeholder-gray-400
+                   focus:outline-none focus:ring-2 focus:ring-white/40 
+                   transition-all resize-none"
         rows={4}
       />
 
       {/* Save Button */}
       <Button
         onClick={handleSave}
-        className="mt-4 w-full rounded-xl 
-          bg-gradient-to-r from-indigo-500 to-cyan-500 
-          hover:from-indigo-600 hover:to-cyan-600 
-          text-white font-medium shadow-md hover:shadow-lg 
-          transition-all"
+        className="mt-4 w-full rounded-xl py-2.5 font-medium text-white
+                   bg-gradient-to-r from-gray-500 via-gray-400 to-gray-600
+                   hover:from-gray-400 hover:via-gray-300 hover:to-gray-500
+                   shadow-[0_0_15px_rgba(255,255,255,0.15)] 
+                   hover:shadow-[0_0_25px_rgba(255,255,255,0.25)]
+                   transition-all duration-300 backdrop-blur-lg border border-white/20"
       >
         Save Entry
       </Button>

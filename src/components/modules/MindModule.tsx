@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { useDevice } from "../../context/DeviceContext";
 import neurosityImg from "../../assets/images/neurosity-headband.png";
 import sAthenaImg from "../../assets/images/S-Athena.webp";
+import MindBackground from "../../components/MindBackground";
+ // if you have dark mode context
+
 
 import {
   ArrowLeft,
@@ -32,6 +35,9 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
   const { isConnected, selectedDevice, setConnection } = useDevice();
   const [currentTest, setCurrentTest] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<any>(null);
+  const [isDarkMode, setIsDarkMode] = useState(
+    document.documentElement.classList.contains("dark")
+  );
 
   const handleConnect = (checked: boolean) => {
     if (checked) {
@@ -76,7 +82,9 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
       : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 relative pb-20 transition-colors duration-500">
+    <div className="min-h-screen bg-gradient-to-br z-10 from-indigo-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 relative pb-20 transition-colors duration-500">
+       <MindBackground isDark={isDarkMode} />
+
       <div className="max-w-md mx-auto pb-6">
         {/* Header */}
         <motion.div

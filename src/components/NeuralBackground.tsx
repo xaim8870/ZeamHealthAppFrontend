@@ -2,71 +2,81 @@ import React, { useRef, useMemo, useEffect, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
+// 🔹 Neural network component (nodes + connections)
 function NeuralNetwork({ isDarkMode }: { isDarkMode: boolean }) {
   const group = useRef<THREE.Group>(null!);
 
-  // Create 500 nodes with random positions
+  // Create ~700 nodes for denser effect
   const nodes = useMemo(
     () =>
-      new Array(500).fill(0).map(() => ({
+      new Array(700).fill(0).map(() => ({
         position: new THREE.Vector3(
+          (Math.random() - 0.5) * 25,
           (Math.random() - 0.5) * 18,
-          (Math.random() - 0.5) * 18,
-          (Math.random() - 0.5) * 18
+          (Math.random() - 0.5) * 25
         ),
       })),
     []
   );
 
-  // Rotate slowly for subtle motion
-  useFrame(() => {
-    group.current.rotation.y += 0.0008;
-    group.current.rotation.x += 0.0003;
+  // Animation: slow rotation + breathing pulse
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    group.current.rotation.y = t * 0.05;
+    group.current.rotation.x = Math.sin(t * 0.02) * 0.1;
+
+    // Optional subtle pulsing of glow intensity
+    group.current.children.forEach((child: any, index: number) => {
+      if (child.material) {
+        child.material.emissiveIntensity =
+          (isDarkMode ? 1.2 : 0.5) + Math.sin(t * 1.5 + index) * 0.2;
+      }
+    });
   });
 
-  // 🎨 Colors depending on theme
-  const nodeColor = isDarkMode ? "#00ffff" : "#555555";
+  // Theme-based colors
+  const nodeColor = isDarkMode ? "#00eaff" : "#555555";
   const lineColor = isDarkMode ? "#00ffff" : "#999999";
 
   return (
     <group ref={group}>
-      {/* Glowing neural spheres */}
+      {/* 🌐 Glowing neural spheres */}
       {nodes.map((node, i) => (
         <mesh key={i} position={node.position}>
-          <sphereGeometry args={[0.06, 10, 10]} />
+          <sphereGeometry args={[0.08, 12, 12]} />
           <meshStandardMaterial
             emissive={isDarkMode ? nodeColor : "#444444"}
-            emissiveIntensity={isDarkMode ? 1.5 : 0.4}
+            emissiveIntensity={isDarkMode ? 1.8 : 0.5}
             color={nodeColor}
+            roughness={0.3}
+            metalness={0.2}
           />
         </mesh>
       ))}
 
-      {/* Complex network connections */}
+      {/* 🧬 Smooth curved neural connections */}
       {nodes.map((node, i) => {
-        const lines = [];
+        const lines: JSX.Element[] = [];
         const connections = Math.floor(Math.random() * 3) + 2;
         for (let j = 0; j < connections; j++) {
           const target = nodes[Math.floor(Math.random() * nodes.length)].position;
           const distance = node.position.distanceTo(target);
-          if (distance < 8) {
-            const points = [node.position, target];
+          if (distance < 10) {
+            // Smooth curve instead of straight line
+            const curve = new THREE.CatmullRomCurve3([node.position, target]);
+            const points = curve.getPoints(5);
             const geometry = new THREE.BufferGeometry().setFromPoints(points);
-            lines.push(
-              <primitive
-                key={`line-${i}-${j}`}
-                object={
-                  new THREE.Line(
-                    geometry,
-                    new THREE.LineBasicMaterial({
-                      color: lineColor,
-                      opacity: isDarkMode ? 0.25 : 0.15,
-                      transparent: true,
-                    })
-                  )
-                }
-              />
+
+            const line = new THREE.Line(
+              geometry,
+              new THREE.LineBasicMaterial({
+                color: lineColor,
+                transparent: true,
+                opacity: isDarkMode ? 0.25 : 0.15,
+              })
             );
+
+            lines.push(<primitive key={`line-${i}-${j}`} object={line} />);
           }
         }
         return lines;
@@ -75,12 +85,13 @@ function NeuralNetwork({ isDarkMode }: { isDarkMode: boolean }) {
   );
 }
 
+// 🔸 Main background component
 export default function NeuralBackground() {
   const [isDarkMode, setIsDarkMode] = useState(
     document.documentElement.classList.contains("dark")
   );
 
-  // 🧠 Automatically react to dark/light mode toggle
+  // Detect dark/light mode changes
   useEffect(() => {
     const observer = new MutationObserver(() => {
       setIsDarkMode(document.documentElement.classList.contains("dark"));
@@ -92,23 +103,51 @@ export default function NeuralBackground() {
     return () => observer.disconnect();
   }, []);
 
-  // 🎨 Background and fog colors for both themes
-  const backgroundColor = isDarkMode ? "#010a16" : "#f2f2f2"; // gray for light mode
-  const fogColor = isDarkMode ? "#010a16" : "#d9d9d9"; // softer gray
+  // Theme colors
+  const backgroundColor = isDarkMode ? "#020617" : "#f2f2f2";
+  const fogColor = isDarkMode ? "#020617" : "#d9d9d9";
+  const glowOverlay = isDarkMode
+    ? "radial-gradient(circle at center, rgba(0,255,255,0.08) 0%, transparent 70%)"
+    : "radial-gradient(circle at center, rgba(0,0,0,0.05) 0%, transparent 70%)";
 
   return (
     <div className="fixed inset-0 w-full h-full z-0">
-      <Canvas camera={{ position: [0, 0, 20], fov: 65 }}>
+      <Canvas camera={{ position: [0, 0, 25], fov: 65 }}>
+        {/* 🌫️ Background + Fog */}
         <color attach="background" args={[backgroundColor]} />
-        <fog attach="fog" args={[fogColor, 10, 40]} />
-        <ambientLight intensity={isDarkMode ? 0.6 : 0.8} />
+        <fog attach="fog" args={[fogColor, 20, 50]} />
+
+        {/* 💡 Layered lighting for realism */}
+        <ambientLight intensity={0.7} />
         <pointLight
           position={[10, 10, 10]}
-          intensity={isDarkMode ? 1.2 : 0.8}
-          color={isDarkMode ? "#00ffff" : "#aaaaaa"}
+          intensity={1.2}
+          color={isDarkMode ? "#00eaff" : "#aaaaaa"}
         />
+        <pointLight
+          position={[-10, -10, -5]}
+          intensity={0.4}
+          color={isDarkMode ? "#0077ff" : "#cccccc"}
+        />
+        <spotLight
+          position={[0, 20, 10]}
+          intensity={0.8}
+          angle={0.3}
+          penumbra={0.5}
+        />
+
+        {/* 🧠 Neural Network */}
         <NeuralNetwork isDarkMode={isDarkMode} />
       </Canvas>
+
+      {/* ✨ Subtle overlay glow for professional feel */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: glowOverlay,
+          transition: "background 0.5s ease",
+        }}
+      ></div>
     </div>
   );
 }
