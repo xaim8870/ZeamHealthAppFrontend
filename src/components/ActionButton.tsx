@@ -22,7 +22,7 @@ const ActionButtons = () => {
             rounded-2xl py-6 px-4
             text-sm font-medium tracking-wide
             text-gray-800 dark:text-gray-100
-            backdrop-blur-xl
+            backdrop-blur-sm
             bg-gradient-to-br from-white/20 via-gray-300/10 to-gray-400/20
             dark:from-gray-800/40 dark:via-gray-700/40 dark:to-gray-900/40
             border border-white/20 dark:border-gray-600/30

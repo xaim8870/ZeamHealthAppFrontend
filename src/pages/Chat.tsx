@@ -1,10 +1,15 @@
-// src/pages/Chat.tsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Menu, Sun, Moon, Send } from "lucide-react";
-import NeuralPatternBackground from "@/components/NeuralPatternBackground";
+import { Menu, Send, Sun, Moon, Stethoscope, User } from "lucide-react";
 import HamburgerMenu from "@/components/HamburgerMenu";
+import NeuralPatternBackground from "@/components/NeuralPatternBackground";
+
+interface Message {
+  sender: "doctor" | "patient";
+  text: string;
+  time: string;
+}
 
 const Chat = () => {
   const [isDarkMode, setIsDarkMode] = useState(
@@ -12,154 +17,147 @@ const Chat = () => {
   );
   const [menuOpen, setMenuOpen] = useState(false);
   const [message, setMessage] = useState("");
-  const [chatHistory, setChatHistory] = useState<string[]>([]);
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [status, setStatus] = useState("");
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory]);
 
   const toggleTheme = () => {
     setIsDarkMode((prev) => !prev);
-    if (!isDarkMode) document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
+    document.documentElement.classList.toggle("dark");
   };
 
-  const getThemeButtonIcon = () =>
-    isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />;
-
-  // ✅ Send message to backend /send-message API
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
 
-    // Optimistically add to local chat
-    setChatHistory([...chatHistory, message]);
-    const currentMessage = message;
+    const newMessage: Message = {
+      sender: "patient",
+      text: message,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    setChatHistory((prev) => [...prev, newMessage]);
     setMessage("");
     setStatus("Sending...");
 
-    try {
-      const response = await fetch("http://localhost:5000/send-message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: currentMessage, sender: "Client" }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setStatus("✅ Message sent successfully!");
-      } else {
-        setStatus(`❌ Failed: ${data.error || "Server error"}`);
-      }
-    } catch (err) {
-      setStatus("❌ Network error, please try again.");
-    }
-
-    // Clear status after few seconds
-    setTimeout(() => setStatus(""), 4000);
+    // Simulate backend reply (for now)
+    setTimeout(() => {
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          sender: "doctor",
+          text: "Thank you for sharing, I’ll review your symptoms shortly.",
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+      setStatus("");
+    }, 2000);
   };
 
   return (
     <div className="flex justify-center items-start min-h-screen bg-gray-100 dark:bg-black">
-      <div className="relative min-h-screen w-full max-w-md pb-20 
-        dark:bg-gradient-to-br dark:from-black dark:via-gray-900 dark:to-cyan-900 
-        bg-gradient-to-b from-blue-50 via-white to-indigo-50 shadow-sm top-3 
-        border border-gray-200 dark:border-gray-700 rounded-3xl overflow-hidden">
+      <div className="relative w-full max-w-md min-h-screen rounded-3xl overflow-hidden border border-gray-300 dark:border-gray-800 shadow-xl 
+        bg-gradient-to-b from-blue-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-black">
 
         {/* Background */}
-        <NeuralPatternBackground
-          className="absolute inset-0 w-full h-full z-[1] pointer-events-none"
-          opacity={0.5}
-        />
+        <NeuralPatternBackground className="absolute inset-0 z-0 opacity-30 pointer-events-none" />
 
         {/* Hamburger Menu */}
         <HamburgerMenu
           isOpen={menuOpen}
           onClose={() => setMenuOpen(false)}
           onNavigate={() => setMenuOpen(false)}
-          user={{ name: "David", loggedIn: true }}
+          user={{ name: "Patient", loggedIn: true }}
         />
-
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.6 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
-            onClick={() => setMenuOpen(false)}
-          />
-        )}
 
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex justify-between items-center px-4 pt-6 pb-3 relative z-10"
+          className="sticky top-0 z-20 flex items-center justify-between px-4 py-4
+          bg-white/70 dark:bg-gray-900/70 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800"
         >
-          <Button onClick={() => setMenuOpen(true)} variant="ghost" size="sm">
-            <Menu className="w-6 h-6" />
+          <Button variant="ghost" size="sm" onClick={() => setMenuOpen(true)}>
+            <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           </Button>
 
-          <h1
-            className="
-              font-orbitron text-2xl font-extrabold tracking-widest
-              text-gray-800 dark:text-white
-              text-glow-teal animate-pulse-glow
-            "
-          >
-            ZEAM CHAT
-          </h1>
+          <div className="flex flex-col items-center">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500">
+                <Stethoscope className="w-4 h-4 text-white" />
+              </div>
+              <h1 className="text-base font-semibold text-gray-800 dark:text-gray-100">
+                Dr. Sarah Williams
+              </h1>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Psychiatrist • Online</p>
+          </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleTheme}
-            className="rounded-full p-2"
-          >
-            {getThemeButtonIcon()}
+          <Button variant="ghost" size="sm" onClick={toggleTheme}>
+            {isDarkMode ? <Sun className="w-5 h-5 text-gray-300" /> : <Moon className="w-5 h-5 text-gray-700" />}
           </Button>
         </motion.div>
 
         {/* Chat Section */}
-        <div className="relative z-10 flex flex-col justify-between h-[calc(100vh-120px)] px-4">
+        <div className="relative z-10 flex flex-col justify-between h-[calc(100vh-140px)] px-4 pt-2">
           {/* Chat messages */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
-            className="flex-1 overflow-y-auto mb-4 p-2 space-y-3 rounded-xl bg-white/60 dark:bg-gray-900/40 backdrop-blur-sm border border-gray-300 dark:border-gray-700"
+            className="flex-1 overflow-y-auto mb-4 space-y-3 px-1 py-2 rounded-2xl bg-white/60 dark:bg-gray-900/40 backdrop-blur-md border border-gray-200 dark:border-gray-700"
           >
             {chatHistory.length === 0 ? (
-              <p className="text-center text-gray-500 dark:text-gray-400 mt-10">
-                Start the conversation with the development team 👇
+              <p className="text-center text-gray-500 dark:text-gray-400 mt-12 text-sm">
+                Start your conversation with your doctor 👇
               </p>
             ) : (
               chatHistory.map((msg, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, x: 30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex justify-end"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${msg.sender === "doctor" ? "justify-start" : "justify-end"}`}
                 >
-                  <div className="max-w-xs bg-gradient-to-br from-indigo-600 to-blue-600 text-white px-4 py-2 rounded-2xl shadow-md text-sm">
-                    {msg}
+                  <div
+                    className={`relative max-w-[75%] px-4 py-2 rounded-2xl shadow-md text-sm ${
+                      msg.sender === "doctor"
+                        ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-none"
+                        : "bg-gradient-to-br from-indigo-600 to-cyan-600 text-white rounded-br-none"
+                    }`}
+                  >
+                    {msg.text}
+                    <div
+                      className={`text-[10px] mt-1 ${
+                        msg.sender === "doctor"
+                          ? "text-gray-500 dark:text-gray-400 text-left"
+                          : "text-gray-200 text-right"
+                      }`}
+                    >
+                      {msg.time}
+                    </div>
                   </div>
                 </motion.div>
               ))
             )}
+            <div ref={chatEndRef} />
           </motion.div>
 
           {/* Status feedback */}
           {status && (
-            <p className="text-center text-xs text-gray-600 dark:text-gray-400 mb-1 animate-pulse">
+            <p className="text-center text-xs text-gray-600 dark:text-gray-400 mb-2 animate-pulse">
               {status}
             </p>
           )}
 
-          {/* Input bar */}
+          {/* Input */}
           <form
             onSubmit={handleSend}
-            className="flex items-center gap-2 bg-white/70 dark:bg-gray-900/60 border border-gray-300 dark:border-gray-700 rounded-full px-3 py-2 backdrop-blur-md"
+            className="flex items-center gap-2 bg-white/80 dark:bg-gray-900/70 border border-gray-300 dark:border-gray-700 rounded-full px-3 py-2 backdrop-blur-md shadow-md mb-4"
           >
             <input
               type="text"
@@ -171,7 +169,7 @@ const Chat = () => {
             <Button
               type="submit"
               size="icon"
-              className="rounded-full bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="rounded-full bg-gradient-to-r from-cyan-500 to-indigo-600 hover:opacity-90 text-white shadow-lg"
             >
               <Send className="w-4 h-4" />
             </Button>

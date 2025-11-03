@@ -6,8 +6,6 @@ import { useDevice } from "../../context/DeviceContext";
 import neurosityImg from "../../assets/images/neurosity-headband.png";
 import sAthenaImg from "../../assets/images/S-Athena.webp";
 import MindBackground from "../../components/MindBackground";
- // if you have dark mode context
-
 
 import {
   ArrowLeft,
@@ -22,7 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { useNavigate } from "react-router-dom";
 import Footer from "../Footer";
 
-// ✅ Import EEG Modules
+// ✅ EEG Modules
 import EEGAssessment from "../EEGAssessment/EEGAssessmentFlow";
 import CustomAssessment from "../EEGAssessment/CustomAssessment";
 
@@ -82,22 +80,29 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
       : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br z-10 from-indigo-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 relative pb-20 transition-colors duration-500">
-       <MindBackground isDark={isDarkMode} />
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-cyan-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 transition-colors duration-500">
+      {/* ✅ Animated Neural Background */}
+      <div className="absolute inset-0 -z-10">
+        <MindBackground isDark={isDarkMode} />
+      </div>
 
-      <div className="max-w-md mx-auto pb-6">
+      {/* ✅ Optional soft overlay for readability */}
+      <div className="absolute inset-0 bg-black/10 dark:bg-black/40 -z-[5]" />
+
+      {/* ✅ Foreground content */}
+      <div className="relative z-10 max-w-md mx-auto pb-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="sticky top-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 z-10 px-4 py-4 transition-colors"
+          className="sticky top-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 z-20 px-4 py-4 transition-colors"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate("/")}
+                onClick={onBack}
                 className="rounded-full bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90"
               >
                 <ArrowLeft className="w-4 h-4 text-white" />
@@ -133,10 +138,7 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                   {deviceImage && isConnected ? (
                     <motion.div
                       initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{
-                        scale: [1, 1.1, 1],
-                        opacity: 1,
-                      }}
+                      animate={{ scale: [1, 1.1, 1], opacity: 1 }}
                       transition={{
                         repeat: Infinity,
                         duration: 2,
