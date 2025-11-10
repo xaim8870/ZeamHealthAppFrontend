@@ -20,6 +20,9 @@ export default {
     extend: {
       fontFamily: {
     orbitron: ["Orbitron", "sans-serif"],
+    poiret: ["Poiret One", "cursive"],
+    aldrich: ["Aldrich", "sans-serif"],
+    questrial: ["Questrial", "sans-serif"],
   },
       colors: {
         border: "hsl(var(--border))",

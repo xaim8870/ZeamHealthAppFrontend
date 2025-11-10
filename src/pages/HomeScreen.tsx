@@ -116,8 +116,8 @@ const HomeScreen = ({ onChatOpen }: HomeScreenProps) => {
 
           <h1
   className="
-    font-orbitron text-2xl md:text-2xl font-extrabold tracking-widest
-    text-gray-800 dark:text-white
+    font-aldrich  md:text-3xl font-extrabold tracking-widest
+   text-green-800 dark:text-orange-400  
     text-glow-teal animate-pulse-glow
   "
 >
