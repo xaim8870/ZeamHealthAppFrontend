@@ -70,23 +70,7 @@ const EyesClosedOpen: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
   // ---------------- UI ----------------
   return (
     <div className="relative w-full max-w-md">
-      {/* 🌌 STAR BACKGROUND */}
-<div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#020710] via-[#06101b] to-[#031009] overflow-hidden rounded-3xl">
-  {Array.from({ length: 50 }, (_, i) => (
-    <div
-      key={i}
-      className="absolute rounded-full bg-white"
-      style={{
-        width: Math.random() * 2 + 1,
-        height: Math.random() * 2 + 1,
-        top: `${Math.random() * 100}%`,
-        left: `${Math.random() * 100}%`,
-        opacity: Math.random() * 0.7 + 0.2,
-        boxShadow: "0 0 6px rgba(255,255,255,0.5)",
-      }}
-    />
-  ))}
-</div>
+      
 
       {/* 🧠 CARD CONTAINER */}
       <motion.div

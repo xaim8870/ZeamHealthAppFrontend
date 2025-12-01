@@ -21,6 +21,8 @@ import Footer from "@/components/Footer";
 import SignalQualityScreen from "./pages/SignalQualityScreen";
 import SplashScreen from "./pages/SplashScreen";
 import Chat from "./pages/Chat";
+import ConnectNeurosity from "./pages/ConnectNeurosity";
+
 import "./styles/global.css";
 
 const queryClient = new QueryClient();
@@ -116,6 +118,9 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
+          <Route 
+            path="/connect-neurosity" 
+            element={<ConnectNeurosity />} />
 
           <Route
             path="/profile"
