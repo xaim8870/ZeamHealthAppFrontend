@@ -34,13 +34,25 @@ export default function ConnectNeurosity() {
         deviceId,
       });
 
+      // Save the active device globally
       setConnection(true, "neurosity", neurosity);
 
+      // Save last used credentials
       localStorage.setItem("neurosityEmail", email);
       localStorage.setItem("neurosityPassword", password);
       localStorage.setItem("neurosityDeviceId", deviceId);
 
+      /** --------------------------------------------------------
+       *  🔍 DEBUG RAW EEG (IMPORTANT TEST)
+       *  Console should show EEG packets IMMEDIATELY after login.
+       * --------------------------------------------------------*/
+      neurosity.brainwaves("raw").subscribe((pkt) => {
+        console.log("🔥 RAW EEG PACKET:", pkt);
+      });
+
+      // Move to signal quality
       navigate("/signal-quality");
+
     } catch (err) {
       console.error(err);
       setError("Could not connect. Check email, password or device ID.");

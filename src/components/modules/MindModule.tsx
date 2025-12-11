@@ -43,14 +43,16 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
 
   const [currentTest, setCurrentTest] = useState<string | null>(null);
 
+  const [showDevicePicker, setShowDevicePicker] = useState(false);
+
   const handleConnectToggle = (checked: boolean) => {
     if (!checked) {
       disconnectDevice();
       return;
     }
 
-    // → Official login page
-    navigate("/connect-neurosity");
+    // Show device picker instead of going straight to neurosity connect page
+    setShowDevicePicker(true);
   };
 
   // If a test is selected, show that screen
@@ -117,7 +119,13 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
 
                   <div>
                     <h3 className="font-semibold">
-                      {isConnected ? "Connected: Neurosity Crown" : "EEG Headset"}
+                      {isConnected
+                        ? `Connected: ${
+                            selectedDevice === "neurosity"
+                              ? "Neurosity Crown"
+                              : "Muse S Athena"
+                          }`
+                        : "EEG Headset"}
                     </h3>
                     <p className="text-sm opacity-80">
                       {isConnected ? "Ready for EEG Session" : "Device Connection"}
@@ -161,6 +169,47 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
           )}
         </div>
       </div>
+
+      {/* DEVICE SELECT MODAL */}
+      {showDevicePicker && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-xl w-80 space-y-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-center text-gray-900 dark:text-white">
+              Select Device
+            </h3>
+
+            <Button
+              className="w-full"
+              onClick={() => {
+                setShowDevicePicker(false);
+                setConnection(false, "neurosity", null);
+                navigate("/connect-neurosity");
+              }}
+            >
+              Connect Neurosity Crown
+            </Button>
+
+            <Button
+              className="w-full"
+              onClick={() => {
+                setShowDevicePicker(false);
+                setConnection(false, "s-athena", null);
+                navigate("/connect-s-athena");
+              }}
+            >
+              Connect Muse S Athena
+            </Button>
+
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => setShowDevicePicker(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

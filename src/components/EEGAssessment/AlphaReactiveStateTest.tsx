@@ -17,27 +17,50 @@ const steps = [
 ];
 
 const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({ onComplete }) => {
+  const STEP_TIME = 10;
+
   const [started, setStarted] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(10);
+  const [timeLeft, setTimeLeft] = useState(STEP_TIME);
   const [completed, setCompleted] = useState(false);
 
+  // ⏱ Timer for each step
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (started && timeLeft > 0) {
-      timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
-    } else if (timeLeft === 0 && started) {
+    if (!started || completed) return;
+
+    if (timeLeft <= 0) {
+      // Move to next step or finish
       if (stepIndex < steps.length - 1) {
         setStepIndex((prev) => prev + 1);
-        setTimeLeft(10);
+        setTimeLeft(STEP_TIME);
       } else {
         setCompleted(true);
         setStarted(false);
         onComplete();
       }
+      return;
     }
-    return () => clearInterval(timer);
-  }, [started, timeLeft, stepIndex, onComplete]);
+
+    const timer = window.setTimeout(() => {
+      setTimeLeft((t) => t - 1);
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [started, timeLeft, stepIndex, completed]); // ❗ no onComplete
+
+  const handleStart = () => {
+    setStarted(true);
+    setCompleted(false);
+    setStepIndex(0);
+    setTimeLeft(STEP_TIME);
+  };
+
+  const handleRetry = () => {
+    setStarted(false);
+    setCompleted(false);
+    setStepIndex(0);
+    setTimeLeft(STEP_TIME);
+  };
 
   return (
     <div className="w-full max-w-md relative">
@@ -105,7 +128,6 @@ const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({ onComplete }) =>
               </motion.div>
             )}
 
-            {/* Completion Message */}
             {completed && (
               <motion.div
                 key="done"
@@ -133,11 +155,7 @@ const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({ onComplete }) =>
         <div className="mt-4 flex gap-3">
           {!started && !completed && (
             <button
-              onClick={() => {
-                setStarted(true);
-                setStepIndex(0);
-                setTimeLeft(10);
-              }}
+              onClick={handleStart}
               className="flex-1 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 
                          shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all duration-300"
             >
@@ -148,12 +166,7 @@ const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({ onComplete }) =>
           {completed && (
             <>
               <button
-                onClick={() => {
-                  setCompleted(false);
-                  setStepIndex(0);
-                  setTimeLeft(10);
-                  setStarted(false);
-                }}
+                onClick={handleRetry}
                 className="flex-1 py-3 rounded-xl text-gray-300 bg-gray-800/70 border border-gray-700/50 hover:bg-gray-700/70 flex items-center justify-center gap-2 transition-all"
               >
                 <RotateCcw className="w-4 h-4 text-emerald-400" /> Retry

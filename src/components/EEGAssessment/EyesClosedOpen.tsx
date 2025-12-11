@@ -52,17 +52,26 @@ const EyesClosedOpen: React.FC<{ onComplete: () => void }> = ({ onComplete }) =>
       `M0 ${baseline}`
     );
 
-  // ---------------- TIMER LOGIC ----------------
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (timeLeft > 0) {
-      timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
-    } else if (stage === "eyesClosed") {
+  // ---------------- TIMER LOGIC (FIXED) ----------------
+useEffect(() => {
+  let timer: NodeJS.Timeout;
+
+  if (timeLeft > 0) {
+    timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+  } else {
+    if (stage === "eyesClosed") {
       setStage("eyesOpen");
       setTimeLeft(totalTime);
-    } else onComplete();
-    return () => clearInterval(timer);
-  }, [timeLeft, stage, onComplete]);
+    } 
+    else if (stage === "eyesOpen") {
+      onComplete();
+    }
+  }
+
+  return () => clearInterval(timer);
+}, [timeLeft, stage]); // removed onComplete
 
   const circumference = 2 * Math.PI * 52;
   const dashOffset = circumference * (1 - timeLeft / totalTime);

@@ -37,7 +37,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const disconnectDevice = () => {
-    logoutNeurosity();
+    logoutNeurosity(neurosity);
     setIsConnected(false);
     setSelectedDevice(null);
     setNeurosity(null);
@@ -45,7 +45,13 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <DeviceContext.Provider
-      value={{ isConnected, selectedDevice, neurosity, setConnection, disconnectDevice }}
+      value={{
+        isConnected,
+        selectedDevice,
+        neurosity,
+        setConnection,
+        disconnectDevice,
+      }}
     >
       {children}
     </DeviceContext.Provider>

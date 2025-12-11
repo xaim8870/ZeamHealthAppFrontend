@@ -1,53 +1,59 @@
 // src/utils/neurosityClient.ts
 import { Neurosity } from "@neurosity/sdk";
 
-let neurosity: Neurosity | null = null;
-
 export interface NeurosityAuth {
   email: string;
   password: string;
   deviceId: string;
 }
 
+// GLOBAL shared instance (fixes missing variable error)
+let neurosity: Neurosity | null = null;
+
+// Storage key
 const STORAGE_KEY = "neurosityAuth";
 
-export const getNeurosity = () => neurosity;
-
+// Save credentials
 export const saveNeurosityAuth = (auth: NeurosityAuth) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
 };
 
+// Load credentials
 export const loadNeurosityAuth = (): NeurosityAuth | null => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 };
 
+// Login and create SDK instance
 export async function loginNeurosity(auth: NeurosityAuth) {
   const { email, password, deviceId } = auth;
 
-  // IMPORTANT: assign to global neurosity variable
-  neurosity = new Neurosity({ deviceId });
-
-  await neurosity.login({
-    email,
-    password,
+  // Create a fresh instance
+  neurosity = new Neurosity({
+    deviceId,           // <-- only valid property
   });
+
+  // Authenticate
+  await neurosity.login({ email, password });
+
+  // Allow device to initialize EEG sensors
+  await new Promise((resolve) => setTimeout(resolve, 1500));
 
   return neurosity;
 }
 
-export const logoutNeurosity = async () => {
-  if (neurosity && (neurosity as any).logout) {
-    try {
-      await (neurosity as any).logout();
-    } catch (err) {
-      console.warn("Neurosity logout error:", err);
+// Logout
+export const logoutNeurosity = async (instance?: Neurosity | null) => {
+  try {
+    const target = instance ?? neurosity;
+    if (target && (target as any).logout) {
+      await (target as any).logout();
     }
+  } catch (err) {
+    console.warn("Neurosity logout error:", err);
   }
-  neurosity = null;
 };
