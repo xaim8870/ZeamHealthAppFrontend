@@ -1,0 +1,8 @@
+export const MUSE_SERVICE = "0000fe8d-0000-1000-8000-00805f9b34fb";
+
+export const EEG_CHARACTERISTICS = {
+  TP9: "273e0003-4c4d-454d-96be-f03bac821358",
+  AF7: "273e0004-4c4d-454d-96be-f03bac821358",
+  AF8: "273e0005-4c4d-454d-96be-f03bac821358",
+  TP10:"273e0006-4c4d-454d-96be-f03bac821358",
+};

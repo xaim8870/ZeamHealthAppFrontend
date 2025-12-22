@@ -22,6 +22,7 @@ import SignalQualityScreen from "./pages/SignalQualityScreen";
 import SplashScreen from "./pages/SplashScreen";
 import Chat from "./pages/Chat";
 import ConnectNeurosity from "./pages/ConnectNeurosity";
+import ConnectMuse from "./pages/connect/connectMuse";
 
 import "./styles/global.css";
 
@@ -120,7 +121,19 @@ const AppRoutes = () => {
           />
           <Route 
             path="/connect-neurosity" 
-            element={<ConnectNeurosity />} />
+            element={
+              <ConnectNeurosity />
+            } 
+          />
+
+          <Route 
+            path="/connect-s-athena" 
+            element={
+              <ConnectMuse />
+            } 
+          />
+
+          
 
           <Route
             path="/profile"

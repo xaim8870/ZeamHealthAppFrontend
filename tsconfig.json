@@ -5,14 +5,22 @@
     { "path": "./tsconfig.node.json" }
   ],
   "compilerOptions": {
+    /* Path Aliases */
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     },
+
+    /* Web Bluetooth + DOM support */
+    "lib": ["DOM", "DOM.Iterable", "ES2020"],
+
+    /* TypeScript behavior */
+    "allowJs": true,
+    "skipLibCheck": true,
+
+    /* Relaxed strictness (keeping your preferences) */
     "noImplicitAny": false,
     "noUnusedParameters": false,
-    "skipLibCheck": true,
-    "allowJs": true,
     "noUnusedLocals": false,
     "strictNullChecks": false
   }
