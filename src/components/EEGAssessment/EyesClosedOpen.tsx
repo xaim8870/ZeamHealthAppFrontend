@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
 import { playBeep } from "../../utils/playBeep";
 
 interface Props {
@@ -25,7 +26,7 @@ const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
   useEffect(() => {
     if (timeLeft > 0) return;
 
-    playBeep(); // 🔔 auditory cue
+    playBeep();
 
     if (stage === "closed") {
       setStage("open");
@@ -41,23 +42,59 @@ const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - progress);
 
+  const StageIcon = stage === "closed" ? EyeOff : Eye;
+
+  const instruction =
+    stage === "closed"
+      ? "Keep your eyes closed"
+      : "Keep your eyes open";
+
+  const ringColor =
+    stage === "closed"
+      ? "#22d3ee" // cyan – calm baseline
+      : "#facc15"; // amber – alert visual
+
   /* ================= UI ================= */
   return (
-    <div className="w-full max-w-md bg-[#0c0f14] border border-gray-700 rounded-2xl p-6 text-gray-100 shadow-xl space-y-8">
+    <div
+      className="w-full max-w-md rounded-3xl
+      bg-gradient-to-br from-[#0b0f17] to-[#05070b]
+      border border-gray-800 p-6 space-y-8
+      shadow-[0_0_60px_rgba(0,255,255,0.05)]"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-cyan-500/15 flex items-center justify-center">
+          <StageIcon className="w-5 h-5 text-cyan-400" />
+        </div>
+
+        <div>
+          <h2 className="text-lg font-semibold">Visual Baseline</h2>
+          <p className="text-xs text-gray-400">
+            Eyes open & closed EEG measurement
+          </p>
+        </div>
+
+        <span
+          className="ml-auto text-xs px-3 py-1 rounded-full
+          bg-cyan-500/10 text-cyan-400 tracking-widest"
+        >
+          EEG TASK
+        </span>
+      </div>
+
       {/* Instruction */}
-      <motion.h2
+      <motion.h3
         key={stage}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center text-lg font-medium tracking-wide"
+        className="text-center text-xl font-medium tracking-wide"
       >
-        {stage === "closed"
-          ? "Please close your eyes"
-          : "Please open your eyes"}
-      </motion.h2>
+        {instruction}
+      </motion.h3>
 
       <p className="text-center text-sm text-gray-400 max-w-xs mx-auto">
-        Remain still and relaxed. Follow the auditory cue.
+        Stay relaxed and still. You will hear a sound when it’s time to switch.
       </p>
 
       {/* Progress Ring */}
@@ -72,7 +109,7 @@ const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
             cx="60"
             cy="60"
             r={radius}
-            stroke="#2a2f3a"
+            stroke="#1f2937"
             strokeWidth="6"
             fill="none"
           />
@@ -82,7 +119,7 @@ const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
             cy="60"
             r={radius}
             fill="none"
-            stroke="#e5e7eb"
+            stroke={ringColor}
             strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -92,9 +129,9 @@ const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
         </svg>
       </div>
 
-      {/* Stage Label */}
+      {/* Footer */}
       <div className="text-center text-xs text-gray-500 tracking-widest uppercase">
-        {stage === "closed" ? "Eyes Closed" : "Eyes Open"}
+        Visual baseline recording in progress
       </div>
     </div>
   );

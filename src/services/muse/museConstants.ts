@@ -1,4 +1,6 @@
-export const MUSE_SERVICE = "0000fe8d-0000-1000-8000-00805f9b34fb";
+// EEG SERVICE (CRITICAL FIX)
+export const MUSE_EEG_SERVICE =
+  "273e0001-4c4d-454d-96be-f03bac821358";
 
 export const EEG_CHARACTERISTICS = {
   TP9: "273e0003-4c4d-454d-96be-f03bac821358",

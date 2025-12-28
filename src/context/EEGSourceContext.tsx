@@ -1,3 +1,7 @@
+import { EEGFrame } from "@/types/eeg";
+import { createContext } from "react";
+
+
 type EEGSource = "neurosity" | "muse" | null;
 
 interface EEGContextType {
