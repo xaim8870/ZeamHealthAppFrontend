@@ -7,8 +7,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, BatteryCharging, BatteryFull } from "lucide-react";
 
-import { useDevice } from "../context/DeviceContext";
-import neurosityImg from "../assets/images/neurosity-headband.png";
+import { useDevice } from "../../context/DeviceContext";
+import neurosityImg from "../../assets/images/neurosity-headband.png";
 
 // ---- Types -------------------------------------------------------
 

@@ -16,12 +16,14 @@ interface BluetoothRemoteGATTServer {
 }
 
 interface BluetoothRemoteGATTService {
+  [x: string]: any;
   getCharacteristic(
     characteristic: BluetoothCharacteristicUUID
   ): Promise<BluetoothRemoteGATTCharacteristic>;
 }
 
 interface BluetoothRemoteGATTCharacteristic extends EventTarget {
+  writeValue(arg0: Uint8Array<ArrayBuffer>): unknown;
   startNotifications(): Promise<BluetoothRemoteGATTCharacteristic>;
   addEventListener(
     type: "characteristicvaluechanged",

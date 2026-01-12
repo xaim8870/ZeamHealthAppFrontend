@@ -1,23 +1,35 @@
-import { MuseClient } from "@/services/muse/museClient";
+import { MuseWebAdapter } from "./adapters/MuseWebAdapter";
+import type { EEGFrame } from "./adapters/EEGAdapter";
 
 export class MuseRecorder {
-  muse = new MuseClient();
-  callbacks: ((data: any) => void)[] = [];
+  private buffer: EEGFrame[] = [];
+  private unsub: (() => void) | null = null;
+
+  constructor(private adapter: MuseWebAdapter) {}
 
   async start() {
-    await this.muse.connect();
-    await this.muse.startEEG((channel, values) => {
-      this.callbacks.forEach(cb =>
-        cb({ device: "muse", channel, values, ts: Date.now() })
-      );
+    await this.adapter.start();
+
+    this.unsub = this.adapter.onData((frame) => {
+      this.buffer.push(frame);
     });
   }
 
   stop() {
-    this.muse.disconnect();
+    this.unsub?.();
+    this.unsub = null;
+    this.adapter.stop();
   }
 
-  onData(cb: (data: any) => void) {
-    this.callbacks.push(cb);
+  onData(cb: (f: EEGFrame) => void) {
+    return this.adapter.onData(cb);
+  }
+
+  getData() {
+    return {
+      device: "muse",
+      frames: this.buffer,
+      totalFrames: this.buffer.length,
+    };
   }
 }

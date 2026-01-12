@@ -1,19 +1,23 @@
-// src/context/DeviceContext.tsx
 import React, { createContext, useContext, useState } from "react";
 import type { Neurosity } from "@neurosity/sdk";
 import { logoutNeurosity } from "../utils/NeurosityClient";
+import { MuseRecorder } from "@/services/eeg/museRecorder";
 
-type DeviceType = "neurosity" | "muse" | "s-athena" | null;
+type DeviceType = "neurosity" | "muse" | null;
 
 interface DeviceState {
   isConnected: boolean;
   selectedDevice: DeviceType;
+
   neurosity: Neurosity | null;
+  museRecorder: MuseRecorder | null;
+
   setConnection: (
     status: boolean,
     device: DeviceType,
-    neurosityInstance?: Neurosity | null
+    payload?: Neurosity | MuseRecorder | null
   ) => void;
+
   disconnectDevice: () => void;
 }
 
@@ -24,23 +28,37 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<DeviceType>(null);
+
   const [neurosity, setNeurosity] = useState<Neurosity | null>(null);
+  const [museRecorder, setMuseRecorder] = useState<MuseRecorder | null>(null);
 
   const setConnection = (
     status: boolean,
     device: DeviceType,
-    neurosityInstance: Neurosity | null = null
+    payload: Neurosity | MuseRecorder | null = null
   ) => {
     setIsConnected(status);
     setSelectedDevice(device);
-    setNeurosity(neurosityInstance ?? null);
+
+    if (device === "neurosity") {
+      setNeurosity(payload as Neurosity);
+      setMuseRecorder(null);
+    }
+
+    if (device === "muse") {
+      setMuseRecorder(payload as MuseRecorder);
+      setNeurosity(null);
+    }
   };
 
   const disconnectDevice = () => {
+    museRecorder?.stop();
     logoutNeurosity(neurosity);
+
     setIsConnected(false);
     setSelectedDevice(null);
     setNeurosity(null);
+    setMuseRecorder(null);
   };
 
   return (
@@ -49,6 +67,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
         isConnected,
         selectedDevice,
         neurosity,
+        museRecorder,
         setConnection,
         disconnectDevice,
       }}

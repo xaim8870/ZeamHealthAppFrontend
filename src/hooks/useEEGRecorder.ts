@@ -1,142 +1,72 @@
-import { useRef, useState } from "react";
-import type { Neurosity } from "@neurosity/sdk";
-
+import { useMemo, useRef } from "react";
 import { useDevice } from "@/context/DeviceContext";
-import { MuseRecorder } from "@/services/eeg/MuseRecorder";
-import { EEGFrame } from "@/types/eeg";
+import type { EEGFrame } from "@/services/eeg/adapters/EEGAdapter";
 
-/* ================= TYPES ================= */
-
-type Recorder = {
-  start: () => Promise<void>;
-  stop: () => void;
-  onData: (cb: (frame: EEGFrame) => void) => void;
+type NeurosityEEGFrame = {
+  device: "neurosity";
+  data: any;
+  ts: number;
 };
 
-/* ================= HOOK ================= */
+export type AnyEEGFrame = EEGFrame | NeurosityEEGFrame;
 
-export const useEEGRecorder = (neurosity?: Neurosity | null) => {
-  const { selectedDevice } = useDevice();
+export function useEEGRecorder() {
+  const { selectedDevice, museRecorder, neurosity } = useDevice();
 
-  const [recording, setRecording] = useState(false);
-  const [samples, setSamples] = useState<EEGFrame[]>([]);
+  const bufferRef = useRef<AnyEEGFrame[]>([]);
+  const unsubRef = useRef<null | (() => void)>(null);
 
-  const museRecorderRef = useRef<MuseRecorder | null>(null);
-  const neurositySubRef = useRef<any>(null);
+  return useMemo(
+    () => ({
+      async start(onFrame?: (f: AnyEEGFrame) => void) {
+        bufferRef.current = [];
+        unsubRef.current?.();
 
-  const sessionRef = useRef({
-    device: "" as "neurosity" | "muse" | "",
-    samplingRate: 256,
-    startTime: 0,
-    endTime: 0,
-  });
+        /* ============== MUSE ============== */
+        if (selectedDevice === "muse") {
+          if (!museRecorder) throw new Error("Muse recorder missing");
 
-  /* ================= DEVICE SELECTION ================= */
+          unsubRef.current = museRecorder.onData((frame) => {
+            bufferRef.current.push(frame);
+            onFrame?.(frame);
+          });
+          return;
+        }
 
-  const getRecorder = (): Recorder => {
-    if (selectedDevice === "neurosity") {
-      if (!neurosity) {
-        throw new Error(
-          "Neurosity selected but instance was not provided"
-        );
-      }
+        /* ============ NEUROSITY ============ */
+        if (selectedDevice === "neurosity") {
+          if (!neurosity) throw new Error("Neurosity not available");
 
-      return {
-        start: async () => {
-          neurositySubRef.current = neurosity
-            .brainwaves("raw")
-            .subscribe((pkt: any) => {
-              setSamples((prev) => [
-                ...prev,
-                {
-                  device: "neurosity",
-                  timestamp: Date.now(),
-                  samplingRate: 250,
-                  channels: pkt.data,
-                },
-              ]);
-            });
-        },
+          const sub = neurosity.brainwaves("raw").subscribe((data: any) => {
+            const frame: NeurosityEEGFrame = {
+              device: "neurosity",
+              data,
+              ts: Date.now(),
+            };
+            bufferRef.current.push(frame);
+            onFrame?.(frame);
+          });
 
-        stop: () => {
-          neurositySubRef.current?.unsubscribe();
-          neurositySubRef.current = null;
-        },
+          unsubRef.current = () => sub.unsubscribe();
+          return;
+        }
 
-        onData: () => {},
-      };
-    }
+        throw new Error("No EEG device selected");
+      },
 
-    if (selectedDevice === "s-athena") {
-      if (!museRecorderRef.current) {
-        museRecorderRef.current = new MuseRecorder();
-      }
+      stop() {
+        unsubRef.current?.();
+        unsubRef.current = null;
+      },
 
-      return museRecorderRef.current;
-    }
-
-    throw new Error("No EEG device selected");
-  };
-
-  /* ================= CONTROL ================= */
-
-  const start = async () => {
-    setSamples([]);
-    setRecording(true);
-
-    sessionRef.current = {
-      device: selectedDevice === "s-athena" ? "muse" : "neurosity",
-      samplingRate: selectedDevice === "s-athena" ? 256 : 250,
-      startTime: Date.now(),
-      endTime: 0,
-    };
-
-    const recorder = getRecorder();
-
-    recorder.onData((frame) => {
-      setSamples((prev) => [...prev, frame]);
-    });
-
-    await recorder.start();
-  };
-
-  const stop = () => {
-    try {
-      const recorder = getRecorder();
-      recorder.stop();
-    } finally {
-      sessionRef.current.endTime = Date.now();
-      setRecording(false);
-    }
-  };
-
-  /* ================= DATA ================= */
-
-  const getData = () => ({
-    ...sessionRef.current,
-    samples,
-  });
-
-  const download = () => {
-    const blob = new Blob([JSON.stringify(getData(), null, 2)], {
-      type: "application/json",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-
-    a.href = url;
-    a.download = `EEG_${sessionRef.current.device}_${Date.now()}.json`;
-    a.click();
-
-    URL.revokeObjectURL(url);
-  };
-
-  return {
-    recording,
-    start,
-    stop,
-    getData,
-    download,
-  };
-};
+      getData() {
+        return {
+          device: selectedDevice,
+          frames: bufferRef.current,
+          totalFrames: bufferRef.current.length,
+        };
+      },
+    }),
+    [selectedDevice, museRecorder, neurosity]
+  );
+}

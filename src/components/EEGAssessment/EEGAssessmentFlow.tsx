@@ -12,8 +12,6 @@ import { ArrowLeft } from "lucide-react";
 import { useEEGRecorder } from "../../hooks/useEEGRecorder";
 import { useDevice } from "../../context/DeviceContext";
 
-/* ================= TYPES ================= */
-
 type Step =
   | "questionnaire"
   | "eyes"
@@ -22,13 +20,10 @@ type Step =
   | "alphaReactive"
   | "mentalSubtraction";
 
-/* ================= COMPONENT ================= */
-
 const EEGAssessmentFlow: React.FC<{
   onBack: () => void;
   onComplete: (data: any) => void;
 }> = ({ onBack, onComplete }) => {
-  /* ================= DEV MENU ================= */
   const [showDevMenu, setShowDevMenu] = useState(false);
 
   useEffect(() => {
@@ -37,12 +32,10 @@ const EEGAssessmentFlow: React.FC<{
         setShowDevMenu((prev) => !prev);
       }
     };
-
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  /* ================= FLOW STATE ================= */
   const [step, setStep] = useState<Step>("questionnaire");
   const [assessmentData, setAssessmentData] = useState<any>({});
   const [showDownloadModal, setShowDownloadModal] = useState(false);
@@ -60,47 +53,56 @@ const EEGAssessmentFlow: React.FC<{
   const currentStepIndex = steps.indexOf(step);
   const progressPercentage = ((currentStepIndex + 1) / steps.length) * 100;
 
-  /* ================= DEVICE & EEG ================= */
-  const { neurosity } = useDevice();
-  const recorder = useEEGRecorder(neurosity);
+  const { neurosity, selectedDevice } = useDevice();
+  const recorder = useEEGRecorder();
 
-  /* ▶ START EEG RECORDING ONCE */
-  useEffect(() => {
-    recorder.start();
+  // START EEG ONCE when assessment starts
+useEffect(() => {
+  (async () => {
+    try {
+      await recorder.start((frame) => {
+        // 🔥 Now Muse RAW logs WILL APPEAR
+        if (frame.device === "muse") {
+          console.log(
+            "[Muse FRAME]",
+            frame.channel,
+            frame.values.slice(0, 5)
+          );
+        }
+      });
+    } catch (e) {
+      console.error("Failed to start EEG:", e);
+    }
+  })();
 
-    return () => {
-      recorder.stop();
-    };
-  }, []);
+  // ❌ DO NOT stop on screen change
+  return () => {};
+}, [selectedDevice]);
 
-  /* ================= UI EFFECTS ================= */
+
   useEffect(() => {
     document.body.classList.add("hide-footer");
     return () => document.body.classList.remove("hide-footer");
   }, []);
 
-  /* ================= HEADER TITLE ================= */
   const getHeaderTitle = () => {
-  switch (step) {
-    case "questionnaire":
-      return "Pre-Assessment";
-    case "eyes":
-      return "Eyes Open / Closed";
-    case "alphaResting":
-      return "Cognitive Baseline";
-    case "breathing":
-      return "Guided Breathing";
-    case "alphaReactive":
-      return "Neural Reactivity";
-    case "mentalSubtraction":
-      return "Mental Load Task";
-    default:
-      return "EEG Assessment";
-  }
-};
-
-
-  /* ================= STEP HANDLERS ================= */
+    switch (step) {
+      case "questionnaire":
+        return "Pre-Assessment";
+      case "eyes":
+        return "Eyes Open / Closed";
+      case "alphaResting":
+        return "Cognitive Baseline";
+      case "breathing":
+        return "Guided Breathing";
+      case "alphaReactive":
+        return "Neural Reactivity";
+      case "mentalSubtraction":
+        return "Mental Load Task";
+      default:
+        return "EEG Assessment";
+    }
+  };
 
   const handleQuestionnaireComplete = (data: any) => {
     setAssessmentData(data);
@@ -108,41 +110,32 @@ const EEGAssessmentFlow: React.FC<{
   };
 
   const handleEyesComplete = () => setStep("alphaResting");
-
   const handleAlphaRestingComplete = () => setStep("breathing");
-
-  const handleAlphaReactiveComplete = () => {
-    setStep("mentalSubtraction");
-  };
+  const handleAlphaReactiveComplete = () => setStep("mentalSubtraction");
 
   const handleMentalSubtractionComplete = () => {
     recorder.stop();
-
     const eegData = recorder.getData();
     setRecordedEEG(eegData);
     setShowDownloadModal(true);
   };
 
-  /* ================= DOWNLOAD ================= */
-
   const downloadEEG = () => {
     if (!recordedEEG) return;
 
-    const blob = new Blob([JSON.stringify(recordedEEG)], {
+    const blob = new Blob([JSON.stringify(recordedEEG, null, 2)], {
       type: "application/json",
     });
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `EEG_${recordedEEG.device}_${Date.now()}.json`;
+    a.download = `EEG_${recordedEEG.device ?? selectedDevice}_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
 
     onComplete({ ...assessmentData, eeg: recordedEEG });
   };
-
-  /* ================= ANIMATION ================= */
 
   const screenVariants = {
     initial: { opacity: 0, x: 80 },
@@ -150,70 +143,65 @@ const EEGAssessmentFlow: React.FC<{
     exit: { opacity: 0, x: -80 },
   };
 
-  /* ================= RENDER ================= */
-
   return (
     <div className="min-h-screen flex flex-col bg-[#0c0f14] text-white relative">
       {/* HEADER */}
       <div className="w-full flex justify-center z-10">
-  <div className="w-full max-w-md mt-6 px-6 py-4
-    bg-gradient-to-br from-[#0b0f17]/80 to-[#05070b]/80
-    border border-gray-800 backdrop-blur-xl
-    rounded-t-2xl flex items-center justify-between
-    shadow-[0_0_30px_rgba(0,255,255,0.06)]
-  ">
+        <div
+          className="w-full max-w-md mt-6 px-6 py-4
+            bg-gradient-to-br from-[#0b0f17]/80 to-[#05070b]/80
+            border border-gray-800 backdrop-blur-xl
+            rounded-t-2xl flex items-center justify-between
+            shadow-[0_0_30px_rgba(0,255,255,0.06)]
+          "
+        >
+          <button
+            onClick={
+              currentStepIndex === 0
+                ? onBack
+                : () => setStep(steps[currentStepIndex - 1])
+            }
+            className="p-2 rounded-full hover:bg-white/5 transition"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-300" />
+          </button>
 
-    {/* Back */}
-    <button
-      onClick={
-        currentStepIndex === 0
-          ? onBack
-          : () => setStep(steps[currentStepIndex - 1])
-      }
-      className="p-2 rounded-full hover:bg-white/5 transition"
-    >
-      <ArrowLeft className="w-5 h-5 text-gray-300" />
-    </button>
+          <div className="flex flex-col items-center gap-0.5">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center gap-2"
+            >
+              <div className="w-7 h-7 rounded-full bg-cyan-500/15 flex items-center justify-center text-cyan-400 text-sm">
+                🧠
+              </div>
 
-    {/* Center Title */}
-    <div className="flex flex-col items-center gap-0.5">
-      <motion.div
-        key={step}
-        initial={{ opacity: 0, y: -6 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-2"
-      >
-        {/* Brain Icon */}
-        <div className="w-7 h-7 rounded-full bg-cyan-500/15 flex items-center justify-center text-cyan-400 text-sm">
-          🧠
+              <h1 className="text-sm font-medium text-gray-100 tracking-wide">
+                {getHeaderTitle()}
+              </h1>
+            </motion.div>
+
+            <span
+              className="text-[10px] px-2 py-0.5 rounded-full
+              bg-cyan-500/10 text-cyan-400 tracking-widest uppercase"
+            >
+              EEG SESSION • {selectedDevice ?? "no device"}
+            </span>
+          </div>
+
+          <div className="w-6" />
         </div>
-
-        <h1 className="text-sm font-medium text-gray-100 tracking-wide">
-          {getHeaderTitle()}
-        </h1>
-      </motion.div>
-
-      {/* Context chip */}
-      <span className="text-[10px] px-2 py-0.5 rounded-full
-        bg-cyan-500/10 text-cyan-400 tracking-widest uppercase">
-        EEG SESSION
-      </span>
-    </div>
-
-    {/* Spacer for symmetry */}
-    <div className="w-6" />
-  </div>
-</div>
+      </div>
 
       {/* PROGRESS BAR */}
       <div className="w-full flex justify-center z-10">
         <div className="w-full max-w-md px-6 mb-4">
           <div className="bg-gray-800 h-2 rounded-full overflow-hidden mt-4">
             <motion.div
-            animate={{ width: `${progressPercentage}%` }}
-            className="h-full bg-cyan-400 shadow-[0_0_12px_rgba(0,255,255,0.6)]"
-          />
-
+              animate={{ width: `${progressPercentage}%` }}
+              className="h-full bg-cyan-400 shadow-[0_0_12px_rgba(0,255,255,0.6)]"
+            />
           </div>
         </div>
       </div>
@@ -232,9 +220,7 @@ const EEGAssessmentFlow: React.FC<{
             <EEGQuestionnaire onComplete={handleQuestionnaireComplete} />
           )}
 
-          {step === "eyes" && (
-            <EyesClosedOpen onComplete={handleEyesComplete} />
-          )}
+          {step === "eyes" && <EyesClosedOpen onComplete={handleEyesComplete} />}
 
           {step === "alphaResting" && (
             <AlphaRestingStateTest onComplete={handleAlphaRestingComplete} />
@@ -245,15 +231,11 @@ const EEGAssessmentFlow: React.FC<{
           )}
 
           {step === "alphaReactive" && (
-            <AlphaReactiveStateTest
-              onComplete={handleAlphaReactiveComplete}
-            />
+            <AlphaReactiveStateTest onComplete={handleAlphaReactiveComplete} />
           )}
 
           {step === "mentalSubtraction" && (
-            <MentalSubtractionScreen
-              onComplete={handleMentalSubtractionComplete}
-            />
+            <MentalSubtractionScreen onComplete={handleMentalSubtractionComplete} />
           )}
         </motion.div>
       </AnimatePresence>

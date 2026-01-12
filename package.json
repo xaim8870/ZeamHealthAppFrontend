@@ -53,6 +53,7 @@
     "framer-motion": "^12.15.0",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
+    "muse-js": "^3.3.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
     "react-apple-signin-auth": "^1.1.2",
@@ -69,6 +70,7 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.180.0",
     "vaul": "^0.9.3",
+    "web-muse": "github:itayinbarr/web-muse",
     "zod": "^3.23.8"
   },
   "devDependencies": {

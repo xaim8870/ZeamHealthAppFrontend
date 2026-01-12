@@ -18,9 +18,13 @@ import SleepModule from "@/components/modules/SleepModule";
 import ProviderDashboard from "@/components/ProviderDashboard";
 import ProfileScreen from "@/pages/ProfileScreen";
 import Footer from "@/components/Footer";
-import SignalQualityScreen from "./pages/SignalQualityScreen";
+// Signal Quality Screen
+import SignalQualityScreen from "./pages/signal/NeurositySignalQuality";
+import MuseSignalQuality from "./pages/signal/MuseSignalQuality";
 import SplashScreen from "./pages/SplashScreen";
 import Chat from "./pages/Chat";
+
+//Connect Pages
 import ConnectNeurosity from "./pages/ConnectNeurosity";
 import ConnectMuse from "./pages/connect/connectMuse";
 
@@ -118,6 +122,11 @@ const AppRoutes = () => {
                 <SignalQualityScreen />
               </ProtectedRoute>
             }
+            
+          />
+          <Route
+            path="/signal-quality-muse"
+            element={<MuseSignalQuality onContinue={() => {}} />}
           />
           <Route 
             path="/connect-neurosity" 
@@ -127,7 +136,7 @@ const AppRoutes = () => {
           />
 
           <Route 
-            path="/connect-s-athena" 
+            path="/connect-muse" 
             element={
               <ConnectMuse />
             } 

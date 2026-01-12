@@ -25,6 +25,7 @@ import {
   Wifi,
   WifiOff,
   Zap,
+  Activity,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -42,7 +43,6 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
     useDevice();
 
   const [currentTest, setCurrentTest] = useState<string | null>(null);
-
   const [showDevicePicker, setShowDevicePicker] = useState(false);
 
   const handleConnectToggle = (checked: boolean) => {
@@ -50,12 +50,9 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
       disconnectDevice();
       return;
     }
-
-    // Show device picker instead of going straight to neurosity connect page
     setShowDevicePicker(true);
   };
 
-  // If a test is selected, show that screen
   if (currentTest) {
     const components: Record<string, JSX.Element> = {
       eeg_assessment: (
@@ -77,20 +74,18 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
   const deviceImage =
     selectedDevice === "neurosity"
       ? neurosityImg
-      : selectedDevice === "s-athena"
+      : selectedDevice === "muse"
       ? sAthenaImg
       : null;
 
   return (
     <div className="relative min-h-screen">
-      {/* Background */}
       <MindBackground
         isDark={document.documentElement.classList.contains("dark")}
       />
 
-      {/* Main content */}
       <div className="relative z-10 max-w-md mx-auto pb-6">
-        {/* Header */}
+        {/* HEADER */}
         <motion.div className="sticky top-0 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md px-4 py-4 border-b dark:border-gray-800 z-10">
           <div className="flex items-center justify-between">
             <Button variant="ghost" onClick={onBack}>
@@ -105,8 +100,8 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
           </div>
         </motion.div>
 
-        {/* Device Card */}
         <div className="px-4 space-y-6 mt-6">
+          {/* DEVICE CARD */}
           <Card className="bg-gradient-to-r from-purple-500 to-blue-600 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -123,12 +118,14 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                         ? `Connected: ${
                             selectedDevice === "neurosity"
                               ? "Neurosity Crown"
-                              : "Muse S Athena"
+                              : "Muse Headset"
                           }`
                         : "EEG Headset"}
                     </h3>
                     <p className="text-sm opacity-80">
-                      {isConnected ? "Ready for EEG Session" : "Device Connection"}
+                      {isConnected
+                        ? "Ready for EEG Session"
+                        : "Device Connection"}
                     </p>
                   </div>
                 </div>
@@ -142,12 +139,46 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
 
               <div className="flex justify-between mt-4">
                 <span>Connection</span>
-                <Switch checked={isConnected} onCheckedChange={handleConnectToggle} />
+                <Switch
+                  checked={isConnected}
+                  onCheckedChange={handleConnectToggle}
+                />
               </div>
             </CardContent>
           </Card>
 
-          {/* Tests */}
+          {/* SIGNAL QUALITY CARD */}
+          {isConnected && (
+            <Card className="border border-cyan-400/40 bg-cyan-500/10">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-cyan-400">
+                  <Activity className="w-5 h-5" />
+                  Signal Quality Check
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-400 mb-4">
+                  Ensure electrode contact and signal stability before starting
+                  EEG recording.
+                </p>
+
+                <Button
+                  className="w-full bg-cyan-500 hover:bg-cyan-400 text-black font-medium"
+                  onClick={() => {
+                    if (selectedDevice === "muse") {
+                      navigate("/signal-quality-muse");
+                    } else {
+                      navigate("/signal-quality-neurosity");
+                    }
+                  }}
+                >
+                  Check Signal Quality
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* EEG TESTS */}
           {isConnected && (
             <Card className="dark:bg-gray-800">
               <CardHeader>
@@ -170,7 +201,7 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
         </div>
       </div>
 
-      {/* DEVICE SELECT MODAL */}
+      {/* DEVICE PICKER */}
       {showDevicePicker && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 p-6 rounded-xl w-80 space-y-4 shadow-xl">
@@ -193,11 +224,11 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
               className="w-full"
               onClick={() => {
                 setShowDevicePicker(false);
-                setConnection(false, "s-athena", null);
-                navigate("/connect-s-athena");
+                setConnection(false, "muse", null);
+                navigate("/connect-muse");
               }}
             >
-              Connect Muse S Athena
+              Connect Muse Headset
             </Button>
 
             <Button
