@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Eye, EyeOff } from "lucide-react";
 import { playBeep } from "../../utils/playBeep";
 
 interface Props {
@@ -42,8 +41,6 @@ const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
   const circumference = 2 * Math.PI * radius;
   const dashOffset = circumference * (1 - progress);
 
-  const StageIcon = stage === "closed" ? EyeOff : Eye;
-
   const instruction =
     stage === "closed"
       ? "Keep your eyes closed"
@@ -51,38 +48,17 @@ const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
 
   const ringColor =
     stage === "closed"
-      ? "#22d3ee" // cyan – calm baseline
-      : "#facc15"; // amber – alert visual
+      ? "#22d3ee" // calm
+      : "#facc15"; // alert
 
   /* ================= UI ================= */
   return (
     <div
       className="w-full max-w-md rounded-3xl
       bg-gradient-to-br from-[#0b0f17] to-[#05070b]
-      border border-gray-800 p-6 space-y-8
+      border border-gray-800 p-6 space-y-10
       shadow-[0_0_60px_rgba(0,255,255,0.05)]"
     >
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-cyan-500/15 flex items-center justify-center">
-          <StageIcon className="w-5 h-5 text-cyan-400" />
-        </div>
-
-        <div>
-          <h2 className="text-lg font-semibold">Visual Baseline</h2>
-          <p className="text-xs text-gray-400">
-            Eyes open & closed EEG measurement
-          </p>
-        </div>
-
-        <span
-          className="ml-auto text-xs px-3 py-1 rounded-full
-          bg-cyan-500/10 text-cyan-400 tracking-widest"
-        >
-          EEG TASK
-        </span>
-      </div>
-
       {/* Instruction */}
       <motion.h3
         key={stage}
@@ -93,12 +69,13 @@ const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
         {instruction}
       </motion.h3>
 
+      {/* Helper text */}
       <p className="text-center text-sm text-gray-400 max-w-xs mx-auto">
-        Stay relaxed and still. You will hear a sound when it’s time to switch.
+        Stay relaxed and still. You will hear a sound when it’s time to open your eyes.
       </p>
 
       {/* Progress Ring */}
-      <div className="flex justify-center mt-6">
+      <div className="flex justify-center mt-2">
         <svg
           width="140"
           height="140"
@@ -127,11 +104,6 @@ const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
             transition={{ duration: 1, ease: "linear" }}
           />
         </svg>
-      </div>
-
-      {/* Footer */}
-      <div className="text-center text-xs text-gray-500 tracking-widest uppercase">
-        Visual baseline recording in progress
       </div>
     </div>
   );

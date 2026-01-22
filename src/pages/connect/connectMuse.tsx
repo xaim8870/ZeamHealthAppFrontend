@@ -7,79 +7,68 @@ import { useDevice } from "@/context/DeviceContext";
 const ConnectMuse: React.FC = () => {
   const navigate = useNavigate();
   const { setConnection } = useDevice();
-  const [status, setStatus] = useState("Idle");
+  const [status, setStatus] = useState("Ready to connect");
   const [connecting, setConnecting] = useState(false);
 
   const handleConnect = async () => {
     if (connecting) return;
-
+    
     try {
       setConnecting(true);
-      setStatus("Tap your Muse-S BBA3 in Bluetooth chooser…");
+      setStatus("🔍 Choose your Muse headset...");
 
       const adapter = new MuseWebAdapter();
       await adapter.connect();
 
-      setStatus("Muse S connected. Preparing session…");
-
-      await new Promise((r) => setTimeout(r, 500));
-
+      setStatus("✅ Connected! Starting EEG stream...");
+      await new Promise(r => setTimeout(r, 500));
+      
       const recorder = new MuseRecorder(adapter);
-
-      // ✅ Use "muse" to match DeviceType
       setConnection(true, "muse", recorder);
 
-      setStatus("Connected! Redirecting…");
-      navigate("/mind");
-    } catch (e: any) {
-      console.error("[Muse S BBA3 Error]", e);
+      setStatus("🎉 Ready for EEG sessions!");
+      setTimeout(() => navigate("/mind"), 1000);
 
-      if (e?.name === "NotFoundError") {
-        setStatus("❌ Bluetooth chooser cancelled or permission denied.");
-      } else if (e?.message?.includes("Characteristic")) {
-        setStatus("✅ web-muse handles Muse S BBA3. Try again.");
-      } else {
-        setStatus(`Failed: ${e.message || "Unknown error"}`);
-      }
+    } catch (e: any) {
+      console.error("[Muse Error]", e);
+      setStatus(e.name === "NotFoundError" 
+        ? "❌ No Muse found. Power ON + forget in Bluetooth settings."
+        : `❌ ${e.message}`);
     } finally {
       setConnecting(false);
     }
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "black",
-        color: "white",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "center",
-        gap: 24,
-      }}
-    >
-      <h1>Connect Muse S Headset</h1>
+    <div style={{
+      minHeight: "100vh", background: "black", color: "white",
+      display: "flex", flexDirection: "column", justifyContent: "center",
+      alignItems: "center", gap: 24, padding: "20px", fontFamily: "Inter"
+    }}>
+      <h1 style={{ fontSize: "2rem", fontWeight: "bold" }}>
+        🔵 Connect Muse Headset
+      </h1>
+      
+      <p style={{ textAlign: "center", maxWidth: "400px", opacity: 0.8 }}>
+        Power ON your Muse S, wet electrodes, forget in phone/PC Bluetooth
+      </p>
 
       <button
         onClick={handleConnect}
         disabled={connecting}
         style={{
-          padding: "14px 28px",
-          fontSize: 16,
-          background: "#00cfe8",
-          border: "none",
-          borderRadius: 8,
-          cursor: "pointer",
-          opacity: connecting ? 0.6 : 1,
+          padding: "16px 32px", fontSize: 18, fontWeight: 600,
+          background: connecting ? "#666" : "#00cfe8", color: "black",
+          border: "none", borderRadius: 12, cursor: connecting ? "not-allowed" : "pointer",
+          boxShadow: "0 8px 32px rgba(0,207,232,0.4)"
         }}
       >
-        {connecting ? "Connecting…" : "Connect Muse S BBA3"}
+        {connecting ? "🔄 Connecting..." : "🎧 Connect Muse S"}
       </button>
 
-      <p style={{ opacity: 0.7, maxWidth: "400px", textAlign: "center" }}>
+      <div style={{ opacity: 0.9, maxWidth: "400px", textAlign: "center" }}>
         {status}
-      </p>
+      </div>
     </div>
   );
 };

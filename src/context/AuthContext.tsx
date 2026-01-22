@@ -14,7 +14,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const login = (email: string, password: string) => {
-    if (email === "test@zeamhealth.com" && password === "password123") {
+    if (email === "test@zeamhealth.com" && password === "testq") {
       setIsAuthenticated(true);
       localStorage.setItem("auth", "true");
       return true;

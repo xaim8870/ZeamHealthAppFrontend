@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Brain } from "lucide-react";
 
 interface AlphaRestingProps {
   onComplete: () => void;
@@ -17,7 +16,7 @@ const generateMathQuestions = (count: number) => {
   });
 };
 
-const DURATION = 30; // seconds (hidden)
+const DURATION = 30; // seconds (HIDDEN)
 
 /* ===================== COMPONENT ===================== */
 const AlphaRestingStateTest: React.FC<AlphaRestingProps> = ({ onComplete }) => {
@@ -29,7 +28,7 @@ const AlphaRestingStateTest: React.FC<AlphaRestingProps> = ({ onComplete }) => {
     setQuestions(generateMathQuestions(12));
   }, []);
 
-  /* ===================== TIMER (HIDDEN) ===================== */
+  /* ===================== HIDDEN TIMER ===================== */
   useEffect(() => {
     if (timeLeft <= 0) {
       onComplete();
@@ -48,66 +47,32 @@ const AlphaRestingStateTest: React.FC<AlphaRestingProps> = ({ onComplete }) => {
     <div
       className="w-full max-w-md rounded-3xl
       bg-gradient-to-br from-[#0b0f17] to-[#05070b]
-      border border-gray-800 p-6 space-y-6
-      shadow-[0_0_60px_rgba(139,92,246,0.08)]"
+      border border-gray-800 p-6 space-y-8
+      shadow-[0_0_60px_rgba(139,92,246,0.06)]"
     >
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full bg-violet-500/15 flex items-center justify-center">
-          <Brain className="w-5 h-5 text-violet-400" />
-        </div>
-
-        <div>
-          <h2 className="text-lg font-semibold">Cognitive Load Task</h2>
-          <p className="text-xs text-gray-400">
-            Mental arithmetic assessment
-          </p>
-        </div>
-
-        <span
-          className="ml-auto text-xs px-3 py-1 rounded-full
-          bg-violet-500/10 text-violet-400 tracking-widest"
-        >
-          EEG TASK
-        </span>
-      </div>
-
       {/* Instruction */}
       <motion.p
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         className="text-center text-sm text-gray-300 leading-relaxed"
       >
-        Solve as many problems as you can.  
-        Do not speak or move while calculating.
+        Solve as many problems as you can, after the time is up follow the instructions and see how relax you can get yourself. 
+        Try to stay as still as possible while calculating.
       </motion.p>
 
       {/* Questions */}
-      <div className="grid grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-2 gap-4 mt-2">
         {questions.map((q, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: i * 0.04 }}
-            className=" py-1 text-center
-              text-lg font-medium tracking-wide text-gray-200"
+            className="text-center text-lg font-medium tracking-wide text-gray-200"
           >
             {q}
           </motion.div>
         ))}
-      </div>
-
-      {/* Subtle Progress Indicator */}
-      <div className="mt-6 flex justify-center">
-        <div className="w-24 h-[3px] bg-gray-700 overflow-hidden rounded-full">
-          <motion.div
-            initial={{ width: "100%" }}
-            animate={{ width: "0%" }}
-            transition={{ duration: DURATION, ease: "linear" }}
-            className="h-full bg-violet-400"
-          />
-        </div>
       </div>
     </div>
   );

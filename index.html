@@ -32,10 +32,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Aldrich&family=Poiret+One&family=Questrial&display=swap" rel="stylesheet">
   </head>
 
-  <body>
-    <div id="root"></div>
-    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <!-- public/index.html - Updated body -->
+<body>
+  <div id="root"></div>
+  
+  <!-- ✅ Muse.js FIRST, before React -->
+  <script src="/Muse.js"></script>
+  
+  <!-- Then other scripts -->
+  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>

@@ -48,7 +48,7 @@ const BreathingScreen: React.FC<BreathingScreenProps> = ({ onComplete }) => {
       border border-gray-800 p-6 space-y-10
       shadow-[0_0_60px_rgba(34,211,238,0.08)]"
     >
-      {/* Header */}
+      {/* Header 
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-full bg-cyan-500/15 flex items-center justify-center">
           <Wind className="w-5 h-5 text-cyan-400" />
@@ -66,7 +66,7 @@ const BreathingScreen: React.FC<BreathingScreenProps> = ({ onComplete }) => {
           CALIBRATION
         </span>
       </div>
-
+ */}
       {/* Instruction */}
       <motion.p
         key={phase.label}
