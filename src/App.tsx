@@ -26,7 +26,7 @@ import Chat from "./pages/Chat";
 
 //Connect Pages
 import ConnectNeurosity from "./pages/ConnectNeurosity";
-import ConnectMuse from "./pages/connect/connectMuse";
+import ConnectMuse from "./pages/connect/ConnectMuse";
 
 import "./styles/global.css";
 

@@ -1,35 +1,60 @@
-import { MuseWebAdapter } from "./adapters/MuseWebAdapter";
-import type { EEGFrame } from "./adapters/EEGAdapter";
+// museRecorder.ts
+import type { EEGFrame, EEGAdapter } from "./adapters/EEGAdapter";
 
 export class MuseRecorder {
-  private buffer: EEGFrame[] = [];
-  private unsub: (() => void) | null = null;
-
-  constructor(private adapter: MuseWebAdapter) {}
-
-  async start() {
-    await this.adapter.start();
-
-    this.unsub = this.adapter.onData((frame) => {
-      this.buffer.push(frame);
+  private adapter: EEGAdapter;
+  private recordings: EEGFrame[] = [];
+  private isRecording = false;
+  
+  constructor(adapter: EEGAdapter) {
+    this.adapter = adapter;
+    
+    // Subscribe to EEG data
+    this.adapter.onData((frame: EEGFrame) => {
+      if (this.isRecording) {
+        this.recordings.push(frame);
+      }
     });
   }
-
-  stop() {
-    this.unsub?.();
-    this.unsub = null;
-    this.adapter.stop();
+  
+  startRecording(): void {
+    this.recordings = [];
+    this.isRecording = true;
+    console.log("🎥 Started recording EEG data");
   }
-
-  onData(cb: (f: EEGFrame) => void) {
-    return this.adapter.onData(cb);
+  
+  stopRecording(): EEGFrame[] {
+    this.isRecording = false;
+    console.log("🛑 Stopped recording. Captured", this.recordings.length, "frames");
+    return [...this.recordings];
   }
-
-  getData() {
-    return {
-      device: "muse",
-      frames: this.buffer,
-      totalFrames: this.buffer.length,
-    };
+  
+  async start(): Promise<void> {
+    await this.adapter.start();
+  }
+  
+  async stop(): Promise<void> {
+    await this.adapter.stop();
+  }
+  
+  isRunning(): boolean {
+    return this.adapter.isRunning();
+  }
+  
+  // Add this method for DeviceContext compatibility
+  async stopStreaming(): Promise<void> {
+    await this.stop();
+  }
+  
+  getAdapter(): EEGAdapter {
+    return this.adapter;
+  }
+  
+  getRecordings(): EEGFrame[] {
+    return [...this.recordings];
+  }
+  
+  clearRecordings(): void {
+    this.recordings = [];
   }
 }

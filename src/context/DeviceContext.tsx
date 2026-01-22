@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from "react";
 import type { Neurosity } from "@neurosity/sdk";
 import { logoutNeurosity } from "../utils/NeurosityClient";
-import { MuseRecorder } from "@/services/eeg/museRecorder";
+import { MuseRecorder } from "@/services/eeg/MuseRecorder";
 
 type DeviceType = "neurosity" | "muse" | null;
 
@@ -52,7 +52,14 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const disconnectDevice = () => {
-    museRecorder?.stop();
+    // Fix: MuseRecorder has stop() method now, or use stopStreaming()
+    if (museRecorder) {
+      // Option 1: If MuseRecorder has stop() method
+      museRecorder.stop?.();
+      // Option 2: Or if it has stopStreaming() method
+      // museRecorder.stopStreaming?.();
+    }
+    
     logoutNeurosity(neurosity);
 
     setIsConnected(false);
