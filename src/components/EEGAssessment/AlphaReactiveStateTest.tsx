@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, Brain } from "lucide-react";
 import { playBeep } from "../../utils/playBeep";
 
 interface AlphaReactiveProps {
@@ -14,7 +13,19 @@ type Phase =
   | "eyesOpen2"
   | "imageBreathing";
 
+type ScreenPhase = "instruction" | "running";
+
 const PHASE_DURATION = 30; // seconds (hidden)
+const INSTRUCTION_DURATION = 5;
+
+// 🎵 Calm music (WAV)
+const MUSIC_TRACKS = [
+  "/assets/music/1.wav",
+  "/assets/music/2.wav",
+  "/assets/music/3.wav",
+];
+
+// const MUSIC_VOLUME = 0.35; // ← uncomment to tune
 
 const phaseOrder: Phase[] = [
   "eyesClosed",
@@ -36,19 +47,62 @@ const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({
   onComplete,
 }) => {
   const [phaseIndex, setPhaseIndex] = useState(0);
+  const [screenPhase, setScreenPhase] =
+    useState<ScreenPhase>("instruction");
   const [timeLeft, setTimeLeft] = useState(PHASE_DURATION);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentPhase = phaseOrder[phaseIndex];
   const isBreathing = currentPhase === "imageBreathing";
+  const isEyesClosed = currentPhase.includes("Closed");
 
-  /* ================= TIMER (HIDDEN) ================= */
+  /* ================= AUDIO SETUP ================= */
   useEffect(() => {
+    const track =
+      MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)];
+
+    const audio = new Audio(track);
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.volume = 0.35;
+    // audio.volume = MUSIC_VOLUME;
+
+    audioRef.current = audio;
+
+    return () => {
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, []);
+
+  /* ================= INSTRUCTION PHASE ================= */
+  useEffect(() => {
+    if (screenPhase !== "instruction") return;
+
+    const t = setTimeout(() => {
+      setScreenPhase("running");
+      setTimeLeft(PHASE_DURATION);
+
+      if (isEyesClosed) {
+        audioRef.current?.play().catch(() => {});
+      }
+    }, INSTRUCTION_DURATION * 1000);
+
+    return () => clearTimeout(t);
+  }, [screenPhase, isEyesClosed]);
+
+  /* ================= RUNNING TIMER ================= */
+  useEffect(() => {
+    if (screenPhase !== "running") return;
+
     if (timeLeft <= 0) {
       playBeep();
+      audioRef.current?.pause();
 
       if (phaseIndex < phaseOrder.length - 1) {
         setPhaseIndex((i) => i + 1);
-        setTimeLeft(PHASE_DURATION);
+        setScreenPhase("instruction");
       } else {
         onComplete();
       }
@@ -60,7 +114,7 @@ const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [timeLeft, phaseIndex, onComplete]);
+  }, [timeLeft, screenPhase, phaseIndex, onComplete]);
 
   /* ================= PROGRESS RING ================= */
   const progress = 1 - timeLeft / PHASE_DURATION;
@@ -70,80 +124,97 @@ const AlphaReactiveStateTest: React.FC<AlphaReactiveProps> = ({
 
   const ringColor = isBreathing
     ? "#22d3ee"
-    : currentPhase.includes("Closed")
+    : isEyesClosed
     ? "#8b5cf6"
     : "#facc15";
 
   /* ================= UI ================= */
   return (
     <div
-      className="w-full max-w-md rounded-3xl
-      bg-gradient-to-br from-[#0b0f17] to-[#05070b]
-      border border-gray-800 p-6 space-y-8
-      shadow-[0_0_60px_rgba(139,92,246,0.08)]"
+      className="
+        relative w-full max-w-md h-[420px]
+        rounded-3xl p-6
+        bg-gradient-to-br from-[#0b0f17] to-[#05070b]
+        border border-gray-800
+        shadow-[0_0_60px_rgba(139,92,246,0.08)]
+        flex flex-col items-center justify-center
+        space-y-8
+      "
     >
-      {/* Instruction */}
       <AnimatePresence mode="wait">
-        <motion.h3
-          key={currentPhase}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          className="text-center text-xl font-medium tracking-wide"
-        >
-          {phaseInstruction[currentPhase]}
-        </motion.h3>
-      </AnimatePresence>
-
-      {/* Image ONLY (no circle, no wheel) */}
-      {isBreathing && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex justify-center"
-        >
-          <img
-            src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80"
-            alt="Calming visual stimulus"
-            className="w-44 h-44 rounded-xl object-cover
-              border border-gray-700 shadow-lg"
-          />
-        </motion.div>
-      )}
-
-      {/* Progress Ring (NOT shown during image phase) */}
-      {!isBreathing && (
-        <div className="flex justify-center mt-2">
-          <svg
-            width="140"
-            height="140"
-            viewBox="0 0 120 120"
-            className="-rotate-90"
+        {/* ================= INSTRUCTION ================= */}
+        {screenPhase === "instruction" && (
+          <motion.div
+            key={`instruction-${currentPhase}`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="text-center space-y-3"
           >
-            <circle
-              cx="60"
-              cy="60"
-              r={radius}
-              stroke="#1f2937"
-              strokeWidth="6"
-              fill="none"
-            />
+            <h3 className="text-xl font-medium tracking-wide text-purple-300">
+              {phaseInstruction[currentPhase]}
+            </h3>
 
-            <motion.circle
-              cx="60"
-              cy="60"
-              r={radius}
-              fill="none"
-              stroke={ringColor}
-              strokeWidth="6"
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={dashOffset}
-              transition={{ duration: 1, ease: "linear" }}
-            />
-          </svg>
-        </div>
-      )}
+            <p className="text-xs text-purple-400/60">
+              Starting in {INSTRUCTION_DURATION} seconds
+            </p>
+          </motion.div>
+        )}
+
+        {/* ================= RUNNING ================= */}
+        {screenPhase === "running" && (
+          <motion.div
+            key={`running-${currentPhase}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="w-full flex flex-col items-center space-y-6"
+          >
+            {/* Image breathing */}
+            {isBreathing && (
+              <motion.img
+                src="/assets/images/calm.jpg"
+                alt="Calming visual stimulus"
+                className="w-44 h-44 rounded-xl object-cover
+                  border border-gray-700 shadow-lg"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+              />
+            )}
+
+            {/* Progress ring */}
+            {!isBreathing && (
+              <svg
+                width="140"
+                height="140"
+                viewBox="0 0 120 120"
+                className="-rotate-90"
+              >
+                <circle
+                  cx="60"
+                  cy="60"
+                  r={radius}
+                  stroke="#1f2937"
+                  strokeWidth="6"
+                  fill="none"
+                />
+
+                <motion.circle
+                  cx="60"
+                  cy="60"
+                  r={radius}
+                  fill="none"
+                  stroke={ringColor}
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={dashOffset}
+                  transition={{ duration: 1, ease: "linear" }}
+                />
+              </svg>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
