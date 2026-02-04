@@ -99,6 +99,8 @@
     @apply bg-background text-foreground;
   }
 }
-.hide-footer footer {
+.hide-footer footer,
+.hide-footer .bottom-nav,
+.hide-footer nav[aria-label="Bottom Navigation"] {
   display: none !important;
 }

@@ -1,303 +1,749 @@
-import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import EEGQuestionnaire from "./EEGQuestionnaire";
-import GetReadyScreen from "./GetReady";
+import GetReady from "./GetReady";
 import EyesClosedOpen from "./EyesClosedOpen";
 import AlphaRestingStateTest from "./AlphaRestingStateTest";
 import BreathingScreen from "./BreathingScreen";
 import AlphaReactiveStateTest from "./AlphaReactiveStateTest";
 import MentalSubtractionScreen from "./MentalSubtractionScreen";
+import PostEEGQuestionnaire from "./PostEEGQuestionnaire";
 
-import { ArrowLeft } from "lucide-react";
-import { useEEGRecorder } from "../../hooks/useEEGRecorder";
+import EEGHeader from "@/components/eeg/EEGHeader";
+import ProgressBar from "@/components/ui/ProgressBar";
+import DeveloperMenu from "@/components/dev/DeveloperMenu";
 import { useDevice } from "../../context/DeviceContext";
 
-type Step =
-  | "questionnaire"
-  | "getReady"
-  | "eyes"
-  | "alphaResting"
-  | "breathing"
-  | "alphaReactive"
-  | "mentalSubtraction";
+import { EEGStep, STEP_ORDER } from "@/types/eegFlow";
+
+/* =========================================================
+   ✅ CHANGE TIMES HERE (easy knobs)
+   - instructionMs: “get ready / instruction” time per screen segment
+   - eyesClosedMs / eyesOpenMs
+   - alphaRestTaskMs
+   - breathingTaskMs
+   - alphaReactiveClosedMs / alphaReactiveOpenMs / alphaReactiveBreathingMs
+   ========================================================= */
+const instructionMs = 5000;
+
+const getReadyMs = 5000;
+
+const eyesClosedMs = 60_000; // 1 min
+const eyesOpenMs = 60_000; // 1 min
+
+const alphaRestTaskMs = 30_000; // your math grid duration
+const breathingTaskMs = 30_000; // breathing guidance duration
+
+const alphaReactiveClosedMs = 30_000;
+const alphaReactiveOpenMs = 30_000;
+/** Optional. If you want breathing phase, keep 30s; if not, set to 0 */
+const alphaReactiveBreathingMs = 30_000;
+
+const HARD_FAILSAFE_EXTRA_MS = 4000; // prevents “stuck” no matter what
+
+type EyesStage = "closed" | "open";
+type UIPhase = "instruction" | "running";
+
+type AlphaRestPhase = "instruction" | "questions";
+type BreathingMode = "instruction" | "breathing";
+
+type AlphaReactivePhase = "eyesClosed" | "eyesOpen" | "imageBreathing";
+type AlphaReactiveMode = "instruction" | "running";
 
 const EEGAssessmentFlow: React.FC<{
   onBack: () => void;
   onComplete: (data: any) => void;
 }> = ({ onBack, onComplete }) => {
-  const [step, setStep] = useState<Step>("questionnaire");
-  const [assessmentData, setAssessmentData] = useState<any>({});
-  const [recordedEEG, setRecordedEEG] = useState<any>(null);
-  const [showDownloadModal, setShowDownloadModal] = useState(false);
-  const [showDevMenu, setShowDevMenu] = useState(false);
+  const { recorder, selectedDevice, neurosity, museRecorder } = useDevice();
 
-  const { selectedDevice } = useDevice();
-  const recorder = useEEGRecorder();
+  const [step, setStep] = useState<EEGStep>("questionnaire");
 
-  const steps: Step[] = [
-    "questionnaire",
-    "getReady",
-    "eyes",
-    "alphaResting",
-    "breathing",
-    "alphaReactive",
-    "mentalSubtraction",
-  ];
+  /* ================= EEG STATUS (UI only) ================= */
+  const [frameCount, setFrameCount] = useState(0);
+  const [eegStatus, setEegStatus] = useState<"idle" | "active">("idle");
+  const frameRef = useRef(0);
+  const startedRef = useRef(false);
 
-  const currentStepIndex = steps.indexOf(step);
-  const progressPercentage = ((currentStepIndex + 1) / steps.length) * 100;
+  const startRecordingOnce = async () => {
+    if (startedRef.current) return;
+    startedRef.current = true;
 
-  /* ================= DEV MENU TOGGLE ================= */
+    if (!selectedDevice) throw new Error("No device selected");
+    if (selectedDevice === "neurosity" && !neurosity)
+      throw new Error("Neurosity not connected");
+    if (selectedDevice === "muse" && !museRecorder)
+      throw new Error("Muse not connected");
+
+    await recorder.start({
+      device: selectedDevice === "neurosity" ? "neurosity" : "muse",
+      neurosity,
+      museRecorder,
+      onFrame: () => {
+        // optional debug
+        // console.log("EEG frame");
+      },
+    });
+
+    recorder.markEvent("session_started", { device: selectedDevice });
+  };
+
   useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.shiftKey && e.key.toLowerCase() === "d") {
-        setShowDevMenu((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
+    const id = setInterval(() => {
+      frameRef.current += 32;
+      setFrameCount(frameRef.current);
+      setEegStatus("active");
+    }, 500);
+    return () => clearInterval(id);
   }, []);
 
-  /* ================= START EEG ONCE ================= */
-  useEffect(() => {
-    (async () => {
-      try {
-        await recorder.start((frame) => {
-          if ((frame as any)?.device === "muse") {
-            console.log(
-              "[Muse EEG]",
-              (frame as any).channel,
-              (frame as any).values?.slice?.(0, 4)
-            );
-          }
-        });
+  /* ================= OVERALL PROGRESS ================= */
+  const totalMs = useMemo(() => {
+    // Total across the “timed” part (excluding questionnaire + postEEG)
+    const alphaReactiveTotal =
+      instructionMs +
+      alphaReactiveClosedMs +
+      alphaReactiveOpenMs +
+      Math.max(0, alphaReactiveBreathingMs);
 
-        recorder.markEvent("assessment_started");
-      } catch (err) {
-        console.error("EEG start failed:", err);
-      }
-    })();
-
-    return () => {};
-  }, [selectedDevice]);
-
-  /* ================= BODY STYLE ================= */
-  useEffect(() => {
-    document.body.classList.add("hide-footer");
-    return () => document.body.classList.remove("hide-footer");
+    return (
+      getReadyMs +
+      (instructionMs + eyesClosedMs + instructionMs + eyesOpenMs) +
+      (instructionMs + alphaRestTaskMs) +
+      (instructionMs + breathingTaskMs) +
+      alphaReactiveTotal
+      // mentalSubtraction is user-paced in your current component; exclude from progress bar
+    );
   }, []);
 
-  /* ================= HEADER TITLE ================= */
-  const getHeaderTitle = () => {
-    switch (step) {
-      case "questionnaire":
-        return "Pre-Assessment";
-      case "getReady":
-        return "Preparation";
-      case "eyes":
-        return "Eyes Open / Closed";
-      case "alphaResting":
-        return "Cognitive Baseline";
-      case "breathing":
-        return "Guided Breathing";
-      case "alphaReactive":
-        return "Neural Reactivity";
-      case "mentalSubtraction":
-        return "Mental Load Task";
-      default:
-        return "EEG Assessment";
+  const elapsedMsRef = useRef(0);
+  const [overallProgress, setOverallProgress] = useState(0);
+
+  /* ======================================================
+     Per-step UI state (presentational screens consume these)
+     ====================================================== */
+  // Eyes
+  const [eyesStage, setEyesStage] = useState<EyesStage>("closed");
+  const [eyesPhase, setEyesPhase] = useState<UIPhase>("instruction");
+  const [eyesTimeLeft, setEyesTimeLeft] = useState(5);
+
+  // Alpha Rest
+  const [alphaRestPhase, setAlphaRestPhase] =
+    useState<AlphaRestPhase>("instruction");
+
+  // Breathing
+  const [breathingMode, setBreathingMode] =
+    useState<BreathingMode>("instruction");
+  const [breathLabel, setBreathLabel] = useState<"Inhale" | "Exhale">("Inhale");
+
+  // Alpha Reactive
+  const [alphaReactiveMode, setAlphaReactiveMode] =
+    useState<AlphaReactiveMode>("instruction");
+  const [alphaReactivePhase, setAlphaReactivePhase] =
+    useState<AlphaReactivePhase>("eyesClosed");
+  const [alphaReactiveProgress, setAlphaReactiveProgress] = useState(0);
+  const [alphaReactiveTimeLeft, setAlphaReactiveTimeLeft] = useState(0);
+  const [alphaReactiveTotalSec, setAlphaReactiveTotalSec] = useState(1);
+
+  /* =====================================================================
+     ✅ WINDOW CAPTURE (THIS FIXES EMPTY TRIMMED RECORDS)
+     - Only open windows during the actual "task/running" parts
+     - Instruction screens remain as your 5s gaps
+     ===================================================================== */
+
+  // Eyes: open window only while running (captures eyes_closed + eyes_open separately)
+  useEffect(() => {
+    if (step !== "eyes") return;
+
+    if (eyesPhase === "running") {
+      recorder.openWindow(`eyes_${eyesStage}`);
+    } else {
+      recorder.closeWindow();
     }
+
+    return () => {
+      recorder.closeWindow();
+    };
+  }, [step, eyesPhase, eyesStage, recorder]);
+
+  // Alpha Rest: open window only during questions/task
+  useEffect(() => {
+    if (step !== "alphaResting") return;
+
+    if (alphaRestPhase === "questions") {
+      recorder.openWindow("alphaResting");
+    } else {
+      recorder.closeWindow();
+    }
+
+    return () => {
+      recorder.closeWindow();
+    };
+  }, [step, alphaRestPhase, recorder]);
+
+  // Breathing: open window only during breathing mode
+  useEffect(() => {
+    if (step !== "breathing") return;
+
+    if (breathingMode === "breathing") {
+      recorder.openWindow("breathing");
+    } else {
+      recorder.closeWindow();
+    }
+
+    return () => {
+      recorder.closeWindow();
+    };
+  }, [step, breathingMode, recorder]);
+
+  // Alpha Reactive: open window during running phases (including imageBreathing if you want it captured too)
+  useEffect(() => {
+    if (step !== "alphaReactive") return;
+
+    if (alphaReactiveMode === "running") {
+      recorder.openWindow(`alphaReactive_${alphaReactivePhase}`);
+    } else {
+      recorder.closeWindow();
+    }
+
+    return () => {
+      recorder.closeWindow();
+    };
+  }, [step, alphaReactiveMode, alphaReactivePhase, recorder]);
+
+  // Mental Subtraction: open window for whole step (component is user-paced)
+  useEffect(() => {
+    if (step !== "mentalSubtraction") return;
+
+    recorder.openWindow("mentalSubtraction");
+    return () => {
+      recorder.closeWindow();
+    };
+  }, [step, recorder]);
+
+  /* ================= TIMING ENGINE =================
+     We run a single “segment timer” per step to avoid stuck screens.
+  ================================================== */
+  const segmentTimerRef = useRef<number | null>(null);
+  const hardStopRef = useRef<number | null>(null);
+
+  const clearTimers = () => {
+    if (segmentTimerRef.current) window.clearInterval(segmentTimerRef.current);
+    if (hardStopRef.current) window.clearTimeout(hardStopRef.current);
+    segmentTimerRef.current = null;
+    hardStopRef.current = null;
   };
 
-  /* ================= STEP HANDLERS ================= */
-
-  const handleQuestionnaireComplete = (data: any) => {
-    setAssessmentData(data);
-    recorder.markEvent("questionnaire_complete");
-    setStep("getReady");
+  const goNextStep = () => {
+    const idx = STEP_ORDER.indexOf(step);
+    const next = STEP_ORDER[idx + 1] ?? "postEEG";
+    setStep(next);
   };
 
-  const handleGetReadyComplete = () => {
-    recorder.markEvent("eyes_open_closed_start");
-    setStep("eyes");
+  const startHardFailsafe = (ms: number) => {
+    if (hardStopRef.current) window.clearTimeout(hardStopRef.current);
+    hardStopRef.current = window.setTimeout(() => {
+      // If anything goes wrong, force advance.
+      goNextStep();
+    }, ms + HARD_FAILSAFE_EXTRA_MS);
   };
 
-  const handleEyesComplete = () => {
-    recorder.markEvent("eyes_open_closed_complete");
-    recorder.markEvent("alpha_resting_start");
-    setStep("alphaResting");
+  // Update overall progress as time passes (only during timed steps)
+  const tickOverall = (delta: number) => {
+    elapsedMsRef.current += delta;
+    setOverallProgress(
+      Math.max(0, Math.min(1, elapsedMsRef.current / totalMs))
+    );
   };
 
-  const handleAlphaRestingComplete = () => {
-    recorder.markEvent("alpha_resting_complete");
-    recorder.markEvent("breathing_start");
-    setStep("breathing");
-  };
+  /* ================= STEP: getReady ================= */
+  useEffect(() => {
+    if (step !== "getReady") return;
 
-  const handleBreathingComplete = () => {
-    recorder.markEvent("breathing_complete");
-    recorder.markEvent("alpha_reactive_start");
-    setStep("alphaReactive");
-  };
+    console.log("🟢 GetReady started");
 
-  const handleAlphaReactiveComplete = () => {
-    recorder.markEvent("alpha_reactive_complete");
-    recorder.markEvent("mental_subtraction_start");
-    setStep("mentalSubtraction");
-  };
+    const timeout = window.setTimeout(() => {
+      console.log("➡️ GetReady done → eyes");
+      setStep("eyes");
+    }, getReadyMs);
 
-  const handleMentalSubtractionComplete = () => {
-    recorder.markEvent("mental_subtraction_complete");
-    recorder.markEvent("assessment_completed");
+    // hard failsafe (optional but safe)
+    const failsafe = window.setTimeout(() => {
+      setStep("eyes");
+    }, getReadyMs + HARD_FAILSAFE_EXTRA_MS);
 
+    return () => {
+      window.clearTimeout(timeout);
+      window.clearTimeout(failsafe);
+    };
+  }, [step]);
+
+  useEffect(() => {
+    if (step !== "eyes") return;
+    if (eyesPhase !== "running") return;
+
+    const interval = setInterval(() => {
+      setEyesTimeLeft((t) => Math.max(0, t - 1));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [step, eyesPhase]);
+
+  useEffect(() => {
+    if (step !== "alphaReactive") return;
+    if (alphaReactiveMode !== "running") return;
+
+    // Only countdown on wheel phases (not breathing)
+    const isWheelPhase =
+      alphaReactivePhase === "eyesClosed" || alphaReactivePhase === "eyesOpen";
+    if (!isWheelPhase) return;
+
+    const interval = window.setInterval(() => {
+      setAlphaReactiveTimeLeft((t) => Math.max(0, t - 1));
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [step, alphaReactiveMode, alphaReactivePhase]);
+
+  // keep progress synced with the countdown
+  useEffect(() => {
+    if (step !== "alphaReactive") return;
+
+    const safeTotal = Math.max(alphaReactiveTotalSec, 1);
+    const p = 1 - alphaReactiveTimeLeft / safeTotal;
+
+    setAlphaReactiveProgress(
+      alphaReactiveMode === "running" &&
+        (alphaReactivePhase === "eyesClosed" ||
+          alphaReactivePhase === "eyesOpen")
+        ? Math.max(0, Math.min(1, p))
+        : 0
+    );
+  }, [
+    step,
+    alphaReactiveMode,
+    alphaReactivePhase,
+    alphaReactiveTimeLeft,
+    alphaReactiveTotalSec,
+  ]);
+
+  /* ================= STEP: eyes (closed then open) ================= */
+  useEffect(() => {
+    if (step !== "eyes") return;
+
+    let cancelled = false;
+
+    // Phase 1: instruction (closed)
+    setEyesStage("closed");
+    setEyesPhase("instruction");
+    setEyesTimeLeft(Math.ceil(instructionMs / 1000));
+
+    const t1 = setTimeout(() => {
+      if (cancelled) return;
+
+      // Phase 2: closed
+      setEyesPhase("running");
+      setEyesTimeLeft(Math.ceil(eyesClosedMs / 1000));
+
+      const t2 = setTimeout(() => {
+        if (cancelled) return;
+
+        // Phase 3: instruction (open)
+        setEyesStage("open");
+        setEyesPhase("instruction");
+        setEyesTimeLeft(Math.ceil(instructionMs / 1000));
+
+        const t3 = setTimeout(() => {
+          if (cancelled) return;
+
+          // Phase 4: open
+          setEyesPhase("running");
+          setEyesTimeLeft(Math.ceil(eyesOpenMs / 1000));
+
+          const t4 = setTimeout(() => {
+            if (cancelled) return;
+            setStep("alphaResting");
+          }, eyesOpenMs);
+
+          return () => clearTimeout(t4);
+        }, instructionMs);
+
+        return () => clearTimeout(t3);
+      }, eyesClosedMs);
+
+      return () => clearTimeout(t2);
+    }, instructionMs);
+
+    // HARD FAILSAFE
+    const failsafe = setTimeout(() => {
+      if (!cancelled) setStep("alphaResting");
+    }, instructionMs + eyesClosedMs + instructionMs + eyesOpenMs + 4000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t1);
+      clearTimeout(failsafe);
+    };
+  }, [step]);
+
+  /* ================= STEP: alphaResting ================= */
+  useEffect(() => {
+    if (step !== "alphaResting") return;
+
+    let cancelled = false;
+
+    // Phase 1: instruction
+    setAlphaRestPhase("instruction");
+
+    const t1 = setTimeout(() => {
+      if (cancelled) return;
+
+      // Phase 2: questions / task
+      setAlphaRestPhase("questions");
+
+      const t2 = setTimeout(() => {
+        if (cancelled) return;
+        setStep("breathing");
+      }, alphaRestTaskMs);
+
+      return () => clearTimeout(t2);
+    }, instructionMs);
+
+    // HARD FAILSAFE
+    const failsafe = setTimeout(() => {
+      if (!cancelled) setStep("breathing");
+    }, instructionMs + alphaRestTaskMs + 4000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t1);
+      clearTimeout(failsafe);
+    };
+  }, [step]);
+
+  /* ================= STEP: breathing ================= */
+  useEffect(() => {
+    if (step !== "breathing") return;
+
+    let cancelled = false;
+
+    // Phase 1: instruction
+    setBreathingMode("instruction");
+    setBreathLabel("Inhale");
+
+    const t1 = setTimeout(() => {
+      if (cancelled) return;
+
+      // Phase 2: breathing
+      setBreathingMode("breathing");
+
+      const breathInterval = setInterval(() => {
+        setBreathLabel((prev) => (prev === "Inhale" ? "Exhale" : "Inhale"));
+      }, 5000);
+
+      const t2 = setTimeout(() => {
+        clearInterval(breathInterval);
+        if (cancelled) return;
+        setStep("alphaReactive");
+      }, breathingTaskMs);
+
+      return () => {
+        clearInterval(breathInterval);
+        clearTimeout(t2);
+      };
+    }, instructionMs);
+
+    // HARD FAILSAFE
+    const failsafe = setTimeout(() => {
+      if (!cancelled) setStep("alphaReactive");
+    }, instructionMs + breathingTaskMs + 4000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t1);
+      clearTimeout(failsafe);
+    };
+  }, [step]);
+
+  /* ================= STEP: alphaReactive ================= */
+  /* ================= STEP: alphaReactive (2 cycles) ================= */
+  useEffect(() => {
+    if (step !== "alphaReactive") return;
+
+    let cancelled = false;
+    const breathingMs = Math.max(0, alphaReactiveBreathingMs);
+
+    const closedSec = Math.ceil(alphaReactiveClosedMs / 1000);
+    const openSec = Math.ceil(alphaReactiveOpenMs / 1000);
+
+    const setInstruction = (p: AlphaReactivePhase) => {
+      setAlphaReactiveMode("instruction");
+      setAlphaReactivePhase(p);
+      setAlphaReactiveProgress(0);
+      setAlphaReactiveTotalSec(p === "eyesClosed" ? closedSec : openSec);
+      setAlphaReactiveTimeLeft(p === "eyesClosed" ? closedSec : openSec);
+    };
+
+    const setRunning = (p: AlphaReactivePhase) => {
+      setAlphaReactiveMode("running");
+      setAlphaReactivePhase(p);
+      setAlphaReactiveProgress(0);
+      setAlphaReactiveTotalSec(p === "eyesClosed" ? closedSec : openSec);
+      setAlphaReactiveTimeLeft(p === "eyesClosed" ? closedSec : openSec);
+    };
+
+    // Start: Instruction (eyes closed)
+    setInstruction("eyesClosed");
+
+    const t1 = window.setTimeout(() => {
+      if (cancelled) return;
+
+      // RUN 1: eyes closed
+      setRunning("eyesClosed");
+
+      const t2 = window.setTimeout(() => {
+        if (cancelled) return;
+
+        // Instruction 1: eyes open
+        setInstruction("eyesOpen");
+
+        const t3 = window.setTimeout(() => {
+          if (cancelled) return;
+
+          // RUN 1: eyes open
+          setRunning("eyesOpen");
+
+          const t4 = window.setTimeout(() => {
+            if (cancelled) return;
+
+            // Instruction 2: eyes closed
+            setInstruction("eyesClosed");
+
+            const t5 = window.setTimeout(() => {
+              if (cancelled) return;
+
+              // RUN 2: eyes closed
+              setRunning("eyesClosed");
+
+              const t6 = window.setTimeout(() => {
+                if (cancelled) return;
+
+                // Instruction 2: eyes open
+                setInstruction("eyesOpen");
+
+                const t7 = window.setTimeout(() => {
+                  if (cancelled) return;
+
+                  // RUN 2: eyes open
+                  setRunning("eyesOpen");
+
+                  const t8 = window.setTimeout(() => {
+                    if (cancelled) return;
+
+                    // Breathing AFTER 2 cycles
+                    if (breathingMs > 0) {
+                      setAlphaReactiveMode("running");
+                      setAlphaReactivePhase("imageBreathing");
+
+                      const breathInterval = window.setInterval(() => {
+                        setBreathLabel((prev) =>
+                          prev === "Inhale" ? "Exhale" : "Inhale"
+                        );
+                      }, 5000);
+
+                      const t9 = window.setTimeout(() => {
+                        window.clearInterval(breathInterval);
+                        if (!cancelled) setStep("mentalSubtraction");
+                      }, breathingMs);
+
+                      return () => {
+                        window.clearInterval(breathInterval);
+                        window.clearTimeout(t9);
+                      };
+                    } else {
+                      setStep("mentalSubtraction");
+                    }
+                  }, alphaReactiveOpenMs);
+
+                  return () => window.clearTimeout(t8);
+                }, instructionMs);
+
+                return () => window.clearTimeout(t7);
+              }, alphaReactiveClosedMs);
+
+              return () => window.clearTimeout(t6);
+            }, instructionMs);
+
+            return () => window.clearTimeout(t5);
+          }, alphaReactiveOpenMs);
+
+          return () => window.clearTimeout(t4);
+        }, instructionMs);
+
+        return () => window.clearTimeout(t3);
+      }, alphaReactiveClosedMs);
+
+      return () => window.clearTimeout(t2);
+    }, instructionMs);
+
+    // HARD FAILSAFE (2 cycles + breathing)
+    const failsafe = window.setTimeout(
+      () => {
+        if (!cancelled) setStep("mentalSubtraction");
+      },
+      // cycle 1
+      instructionMs +
+        alphaReactiveClosedMs +
+        instructionMs +
+        alphaReactiveOpenMs +
+        // cycle 2
+        instructionMs +
+        alphaReactiveClosedMs +
+        instructionMs +
+        alphaReactiveOpenMs +
+        // breathing
+        breathingMs +
+        HARD_FAILSAFE_EXTRA_MS
+    );
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t1);
+      window.clearTimeout(failsafe);
+    };
+  }, [step]);
+
+  /* ================= mentalSubtraction (user-paced component) =================
+     Add a hard failsafe anyway so it NEVER gets stuck.
+  ========================================================================== */
+  useEffect(() => {
+    if (step !== "mentalSubtraction") return;
+
+    const failsafe = window.setTimeout(() => {
+      setStep("postEEG");
+    }, 70_000);
+
+    return () => window.clearTimeout(failsafe);
+  }, [step]);
+
+  /* ================= POST EEG + DOWNLOAD ================= */
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [recordedEEG, setRecordedEEG] = useState<any>(null);
+
+  const handlePostEEGSubmit = (data: any) => {
+    recorder.setPostEEG(data);
     recorder.stop();
 
-    const eegData = recorder.getData();
-    setRecordedEEG(eegData);
+    // Try trimmed first
+    let eeg = recorder.getData({ trimmed: true });
+
+    // ✅ If windows missing, fallback to untrimmed
+    if (!eeg.windows?.length || eeg.totalTrimmedRecords === 0) {
+      eeg = recorder.getData({ trimmed: false });
+    }
+
+    setRecordedEEG(eeg);
     setShowDownloadModal(true);
   };
 
-  /* ================= DOWNLOAD ================= */
-
-  const downloadEEG = () => {
-    if (!recordedEEG) return;
-
+  const download = () => {
     const blob = new Blob([JSON.stringify(recordedEEG, null, 2)], {
       type: "application/json",
     });
-
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `EEG_${selectedDevice ?? "device"}_${Date.now()}.json`;
+    a.download = `EEG_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
 
-    onComplete({ ...assessmentData, eeg: recordedEEG });
+    onComplete(recordedEEG);
   };
 
-  /* ================= ANIMATION ================= */
-
-  const screenVariants = {
-    initial: { opacity: 0, x: 80 },
-    animate: { opacity: 1, x: 0 },
-    exit: { opacity: 0, x: -80 },
-  };
-
+  /* ================= UI ================= */
   return (
-    <div className="min-h-screen flex flex-col bg-[#0c0f14] text-white relative">
-      {/* HEADER */}
-      <div className="w-full flex justify-center z-10">
-        <div className="w-full max-w-md mt-6 px-6 py-4
-          bg-gradient-to-br from-[#0b0f17]/80 to-[#05070b]/80
-          border border-gray-800 backdrop-blur-xl
-          rounded-t-2xl flex items-center justify-between">
+    <div className="min-h-screen bg-[#0c0f14] text-white flex flex-col">
+      {/* Header: keep it simple inside EEGHeader ("EEG In Progress...") */}
+      <EEGHeader onBack={onBack} eegStatus={eegStatus} frameCount={frameCount} />
 
-          <button
-            onClick={
-              currentStepIndex === 0
-                ? onBack
-                : () => setStep(steps[currentStepIndex - 1])
-            }
-            className="p-2 rounded-full hover:bg-white/5 transition"
-          >
-            <ArrowLeft className="w-5 h-5 text-gray-300" />
-          </button>
-
-          <div className="flex flex-col items-center">
-            <h1 className="text-sm font-medium">{getHeaderTitle()}</h1>
-            <span className="text-[10px] mt-0.5 px-2 py-0.5 rounded-full
-              bg-cyan-500/10 text-cyan-400 tracking-widest uppercase">
-              EEG SESSION • {selectedDevice ?? "no device"}
-            </span>
-          </div>
-
-          <div className="w-6" />
+      {/* ✅ Overall progress bar: BELOW header, ABOVE screen */}
+      <div className="w-full flex justify-center">
+        <div className="w-full max-w-md px-6">
+          {/* Show progress only during the timed portion */}
+          {step !== "questionnaire" && step !== "postEEG" && (
+            <ProgressBar progress={overallProgress} />
+          )}
         </div>
       </div>
 
-      {/* PROGRESS */}
-      <div className="w-full flex justify-center z-10">
-        <div className="w-full max-w-md px-6 mt-4">
-          <div className="bg-gray-800 h-2 rounded-full overflow-hidden">
-            <motion.div
-              animate={{ width: `${progressPercentage}%` }}
-              className="h-full bg-cyan-400"
-            />
-          </div>
-        </div>
-      </div>
+      <DeveloperMenu currentStep={step} setStep={(s) => setStep(s)} />
 
-      {/* CONTENT */}
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
-          variants={screenVariants}
-          initial="initial"
-          animate="animate"
-          exit="exit"
           className="flex-1 flex items-center justify-center px-4"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
         >
           {step === "questionnaire" && (
-            <EEGQuestionnaire onComplete={handleQuestionnaireComplete} />
+            <EEGQuestionnaire
+              onComplete={async () => {
+                await startRecordingOnce();
+                setStep("getReady");
+              }}
+            />
           )}
 
-          {step === "getReady" && (
-            <GetReadyScreen onComplete={handleGetReadyComplete} />
-          )}
+          {step === "getReady" && <GetReady />}
 
           {step === "eyes" && (
-            <EyesClosedOpen onComplete={handleEyesComplete} />
+            <EyesClosedOpen
+              stage={eyesStage}
+              phase={eyesPhase}
+              timeLeft={eyesTimeLeft}
+              totalTime={
+                eyesStage === "closed" ? eyesClosedMs / 1000 : eyesOpenMs / 1000
+              }
+            />
           )}
 
           {step === "alphaResting" && (
-            <AlphaRestingStateTest onComplete={handleAlphaRestingComplete} />
+            <AlphaRestingStateTest phase={alphaRestPhase} />
           )}
 
           {step === "breathing" && (
-            <BreathingScreen onComplete={handleBreathingComplete} />
+            <BreathingScreen mode={breathingMode} breathLabel={breathLabel} />
           )}
 
           {step === "alphaReactive" && (
-            <AlphaReactiveStateTest onComplete={handleAlphaReactiveComplete} />
+            <AlphaReactiveStateTest
+              phase={alphaReactivePhase}
+              mode={alphaReactiveMode}
+              progress={alphaReactiveProgress}
+              breathLabel={breathLabel}
+            />
           )}
 
           {step === "mentalSubtraction" && (
-            <MentalSubtractionScreen
-              onComplete={handleMentalSubtractionComplete}
-            />
+            <MentalSubtractionScreen onComplete={() => setStep("postEEG")} />
+          )}
+
+          {step === "postEEG" && (
+            <PostEEGQuestionnaire onSubmit={handlePostEEGSubmit} />
           )}
         </motion.div>
       </AnimatePresence>
 
-      {/* DEV MENU */}
-      {showDevMenu && (
-        <div className="fixed bottom-4 right-4 z-50 bg-[#0c0f14]
-          border border-gray-600 rounded-xl p-4 w-56 text-sm">
-          <p className="text-xs text-gray-400 mb-2 uppercase">
-            Developer Menu
-          </p>
-          {steps.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStep(s)}
-              className="w-full text-left px-3 py-2 rounded-md hover:bg-gray-800"
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* DOWNLOAD MODAL */}
       {showDownloadModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-6 rounded-xl w-80 border border-gray-700">
-            <p className="text-center mb-4">EEG Recording Complete</p>
+          <div className="bg-gray-900 border border-gray-800 p-6 rounded-2xl w-80">
+            <div className="text-center text-sm text-gray-300 mb-4">
+              EEG saved. Post-EEG tags included.
+            </div>
             <button
-              onClick={downloadEEG}
-              className="w-full py-2 bg-gray-200 text-black rounded-lg"
+              onClick={download}
+              className="w-full py-3 bg-cyan-600 rounded-lg hover:bg-cyan-700 transition"
             >
               Download EEG
             </button>

@@ -1,192 +1,139 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
+import ProgressWheel from "@/components/ui/ProgressWheel";
 import { playBeep } from "../../utils/playBeep";
 
 interface Props {
-  onComplete: () => void;
+  stage: "closed" | "open";
+  phase: "instruction" | "running";
+  timeLeft: number;
+  totalTime: number;
 }
 
-/* ================= CONFIG ================= */
-const STAGE_DURATION = 60;
-const INSTRUCTION_DURATION = 5;
-
-/*
-  🎵 EEG CALM MUSIC (WAV)
-  Files must be inside:
-  public/assets/music/
-*/
+/* 🎵 Calm EEG background music */
 const MUSIC_TRACKS = [
-  "/assets/music/1.wav",
-  "/assets/music/2.wav",
-  "/assets/music/3.wav",
+  "/assets/music/AXIS1173_17_Calm_Full.wav",
+  "/assets/music/AXIS1173_18_Calm_Alt.wav",
+  "/assets/music/AXIS1173_19_Calm_60.wav", // ✅ fixed
+  "/assets/music/AXIS1173_19_Calm_30.wav", // ✅ fixed
 ];
 
-/*
-  🔊 MUSIC VOLUME (0.0 – 1.0)
-  👉 Uncomment to tune
-*/
-const MUSIC_VOLUME = 0.1;
+const MUSIC_VOLUME = 0.12;
 
-type Stage = "closed" | "open";
-type Phase = "instruction" | "running";
+const EyesClosedOpen: React.FC<Props> = ({
+  stage,
+  phase,
+  timeLeft,
+  totalTime,
+}) => {
+  const Icon = stage === "closed" ? EyeOff : Eye;
 
-const EyesClosedOpen: React.FC<Props> = ({ onComplete }) => {
-  const [stage, setStage] = useState<Stage>("closed");
-  const [phase, setPhase] = useState<Phase>("instruction");
-  const [timeLeft, setTimeLeft] = useState(STAGE_DURATION);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  /* ================= AUDIO SETUP ================= */
-  useEffect(() => {
-    // 🎲 pick random WAV
-    const track =
-      MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)];
-
-    const audio = new Audio(track);
-    audio.loop = true;
-    audio.preload = "auto"; // IMPORTANT for WAV
-
-    // 🔊 safe EEG volume
-    audio.volume = 0.35;
-    // audio.volume = MUSIC_VOLUME; // ← optional
-
-    audioRef.current = audio;
-
-    return () => {
-      audio.pause();
-      audioRef.current = null;
-    };
-  }, []);
-
-  /* ================= INSTRUCTION PHASE ================= */
-  useEffect(() => {
-    if (phase !== "instruction") return;
-
-    const t = setTimeout(() => {
-      setPhase("running");
-      setTimeLeft(STAGE_DURATION);
-
-      // ▶ play only during eyes-closed
-      if (stage === "closed") {
-        audioRef.current?.play().catch(() => {});
-      }
-    }, INSTRUCTION_DURATION * 1000);
-
-    return () => clearTimeout(t);
-  }, [phase, stage]);
-
-  /* ================= RUNNING TIMER ================= */
-  useEffect(() => {
-    if (phase !== "running") return;
-
-    const interval = setInterval(() => {
-      setTimeLeft((t) => t - 1);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [phase]);
-
-  /* ================= STAGE TRANSITION ================= */
-  useEffect(() => {
-    if (phase !== "running" || timeLeft > 0) return;
-
-    playBeep();
-    audioRef.current?.pause();
-
-    if (stage === "closed") {
-      setStage("open");
-      setPhase("instruction");
-    } else {
-      onComplete();
-    }
-  }, [timeLeft, phase, stage, onComplete]);
-
-  /* ================= PROGRESS RING ================= */
-  const progress = 1 - timeLeft / STAGE_DURATION;
-  const radius = 46;
-  const circumference = 2 * Math.PI * radius;
-  const dashOffset = circumference * (1 - progress);
-
-  const instruction =
+  /* ================= INSTRUCTION TEXT ================= */
+  const instructionTitle =
     stage === "closed" ? "Close your eyes" : "Open your eyes";
 
-  const subText =
+  const instructionText =
     stage === "closed"
-      ? "Relax. Breathe slowly. Stay still."
-      : "Remain still and focused.";
+      ? "Please keep your eyes closed until the music stops."
+      : "Please keep your eyes open and find a point to focus on.";
 
-  const ringColor = stage === "closed" ? "#38bdf8" : "#facc15";
+  /* ================= MUSIC CONTROL ================= */
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (!audioRef.current) {
+      const track =
+        MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)];
+      const audio = new Audio(track);
+      audio.loop = true;
+      audio.volume = MUSIC_VOLUME;
+      audio.preload = "auto";
+      audioRef.current = audio;
+    }
+
+    // ▶ Play music during BOTH eyes-closed + eyes-open when running
+    if (phase === "running") {
+      audioRef.current.play().catch(() => {});
+    } else {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    return () => {
+      audioRef.current?.pause();
+    };
+  }, [phase]);
+
+  /* ================= BEEP WHEN EYES-CLOSED COMPLETES ONLY ================= */
+  const prevTimeLeftRef = useRef<number>(timeLeft);
+  const beepedForClosedRunRef = useRef(false);
+
+  // Reset beep flag when a NEW eyes-closed running segment begins
+  useEffect(() => {
+    if (phase === "running" && stage === "closed") {
+      beepedForClosedRunRef.current = false;
+    }
+  }, [phase, stage]);
+
+  useEffect(() => {
+    const prev = prevTimeLeftRef.current;
+
+    if (
+      stage === "closed" &&
+      phase === "running" &&
+      prev > 0 &&
+      timeLeft <= 0 &&
+      !beepedForClosedRunRef.current
+    ) {
+      beepedForClosedRunRef.current = true;
+      playBeep(); // ✅ now resumes AudioContext internally
+    }
+
+    prevTimeLeftRef.current = timeLeft;
+  }, [stage, phase, timeLeft]);
 
   /* ================= UI ================= */
   return (
     <div
       className="
-        relative w-full max-w-md h-[420px]
-        rounded-3xl p-6
-        bg-gradient-to-br from-[#0b1220] to-[#05070b]
-        border border-cyan-900/40
-        shadow-[0_0_80px_rgba(56,189,248,0.08)]
-        flex flex-col justify-center items-center
+        relative w-full max-w-md h-[380px]
+        bg-gradient-to-br from-[#0b0f17] to-[#05070b]
+        border border-gray-800
+        rounded-b-3xl
+        flex flex-col items-center justify-center
+        px-6 text-center
       "
     >
-      {/* TEXT */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4 px-6">
-        <AnimatePresence mode="wait">
-          {phase === "instruction" && (
-            <motion.div
-              key={`instruction-${stage}`}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              className="text-center space-y-3"
-            >
-              <h3 className="text-2xl font-semibold text-cyan-300">
-                {instruction}
-              </h3>
-              <p className="text-sm text-cyan-200/70">{subText}</p>
-              <p className="text-xs text-cyan-400/60">
-                Starting in {INSTRUCTION_DURATION} seconds
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* WHEEL */}
-      <AnimatePresence>
-        {phase === "running" && (
+      <AnimatePresence mode="wait">
+        {phase === "instruction" ? (
           <motion.div
+            key={`instruction-${stage}`}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="space-y-4"
+          >
+            <Icon className="w-9 h-9 mx-auto text-cyan-400" />
+            <h3 className="text-xl font-semibold text-white">
+              {instructionTitle}
+            </h3>
+            <p className="text-sm text-gray-400 max-w-xs mx-auto">
+              {instructionText}
+            </p>
+          </motion.div>
+        ) : (
+          <motion.div
+            key={`running-${stage}`}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center justify-center"
           >
-            <svg
-              width="160"
-              height="160"
-              viewBox="0 0 120 120"
-              className="-rotate-90"
-            >
-              <circle
-                cx="60"
-                cy="60"
-                r={radius}
-                stroke="#1f2937"
-                strokeWidth="6"
-                fill="none"
-              />
-              <motion.circle
-                cx="60"
-                cy="60"
-                r={radius}
-                fill="none"
-                stroke={ringColor}
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={dashOffset}
-                transition={{ duration: 1, ease: "linear" }}
-              />
-            </svg>
+            <ProgressWheel
+              timeLeft={timeLeft}
+              totalTime={totalTime}
+              color={stage === "closed" ? "#38bdf8" : "#facc15"}
+            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,62 +1,81 @@
 import React, { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom";
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+
 import { DeviceProvider } from "./context/DeviceContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
+/* ---------- Layouts ---------- */
+import MainLayout from "@/layouts/MainLayout";
+import EEGLayout from "@/layouts/EEGLayout";
+
+/* ---------- Pages ---------- */
 import AuthPages from "./pages/AuthPages";
 import HomeScreen from "./pages/HomeScreen";
+import ProfileScreen from "./pages/ProfileScreen";
 import NotFound from "./pages/NotFound";
+import SplashScreen from "./pages/SplashScreen";
+import Chat from "./pages/Chat";
+
+/* ---------- Modules ---------- */
 import MindModule from "@/components/modules/MindModule";
 import BodyModule from "@/components/modules/BodyModule";
 import ActivityModule from "@/components/modules/ActivityModule";
 import SleepModule from "@/components/modules/SleepModule";
 import ProviderDashboard from "@/components/ProviderDashboard";
-import ProfileScreen from "@/pages/ProfileScreen";
-import Footer from "@/components/Footer";
-// Signal Quality Screen
+
+/* ---------- EEG / Device ---------- */
 import SignalQualityScreen from "./pages/signal/NeurositySignalQuality";
 import MuseSignalQuality from "./pages/signal/MuseSignalQuality";
-import SplashScreen from "./pages/SplashScreen";
-import Chat from "./pages/Chat";
-
-//Connect Pages
 import ConnectNeurosity from "./pages/ConnectNeurosity";
 import ConnectMuse from "./pages/connect/ConnectMuse";
+import EEGAssessmentFlow from "./components/EEGAssessment/EEGAssessmentFlow";
 
 import "./styles/global.css";
 
 const queryClient = new QueryClient();
 
-/* -------------------- ProtectedRoute Wrapper -------------------- */
+/* ================= PROTECTED ROUTE ================= */
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
-/* -------------------- App Routes -------------------- */
+/* ================= ROUTES ================= */
 const AppRoutes = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
   return (
-   <div className="min-h-screen dark:bg-black transition-colors duration-300" id="app-root">
-      <DeviceProvider>
-        <Routes>
-          {/* ---------- Auth Routes ---------- */}
-          <Route path="/login" element={<AuthPages isSignup={false} onLogin={login} />} />
-          <Route path="/signup" element={<AuthPages isSignup={true} onLogin={login} />} />
+    <DeviceProvider>
+      <Routes>
+        {/* ========== AUTH ========== */}
+        <Route
+          path="/login"
+          element={<AuthPages isSignup={false} onLogin={login} />}
+        />
+        <Route
+          path="/signup"
+          element={<AuthPages isSignup={true} onLogin={login} />}
+        />
 
-          {/* ---------- Protected Routes ---------- */}
+        {/* ========== MAIN APP (WITH FOOTER) ========== */}
+        <Route element={<MainLayout />}>
           <Route
             path="/home"
             element={
               <ProtectedRoute>
-                {/* ✅ Pass onChatOpen prop */}
                 <HomeScreen onChatOpen={() => navigate("/chat")} />
               </ProtectedRoute>
             }
@@ -66,7 +85,6 @@ const AppRoutes = () => {
             path="/mind"
             element={
               <ProtectedRoute>
-                {/* ✅ Pass onBack prop */}
                 <MindModule onBack={() => navigate("/home")} />
               </ProtectedRoute>
             }
@@ -76,7 +94,6 @@ const AppRoutes = () => {
             path="/body"
             element={
               <ProtectedRoute>
-                {/* ✅ Pass onBack prop */}
                 <BodyModule onBack={() => navigate("/home")} />
               </ProtectedRoute>
             }
@@ -86,7 +103,6 @@ const AppRoutes = () => {
             path="/activity"
             element={
               <ProtectedRoute>
-                {/* ✅ Pass onBack and onModuleSelect props */}
                 <ActivityModule
                   onBack={() => navigate("/home")}
                   onModuleSelect={() => {}}
@@ -99,7 +115,6 @@ const AppRoutes = () => {
             path="/sleep"
             element={
               <ProtectedRoute>
-                {/* ✅ Pass onBack prop */}
                 <SleepModule onBack={() => navigate("/home")} />
               </ProtectedRoute>
             }
@@ -109,12 +124,23 @@ const AppRoutes = () => {
             path="/provider"
             element={
               <ProtectedRoute>
-                {/* ✅ Pass onBack prop */}
                 <ProviderDashboard onBack={() => navigate("/home")} />
               </ProtectedRoute>
             }
           />
 
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfileScreen />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+
+        {/* ========== EEG FLOW (NO FOOTER) ========== */}
+        <Route element={<EEGLayout />}>
           <Route
             path="/signal-quality"
             element={
@@ -122,33 +148,24 @@ const AppRoutes = () => {
                 <SignalQualityScreen />
               </ProtectedRoute>
             }
-            
           />
+
           <Route
             path="/signal-quality-muse"
             element={<MuseSignalQuality onContinue={() => {}} />}
           />
-          <Route 
-            path="/connect-neurosity" 
-            element={
-              <ConnectNeurosity />
-            } 
-          />
 
-          <Route 
-            path="/connect-muse" 
-            element={
-              <ConnectMuse />
-            } 
-          />
-
-          
+          <Route path="/connect-neurosity" element={<ConnectNeurosity />} />
+          <Route path="/connect-muse" element={<ConnectMuse />} />
 
           <Route
-            path="/profile"
+            path="/eeg/assessment"
             element={
               <ProtectedRoute>
-                <ProfileScreen />
+                <EEGAssessmentFlow
+                  onBack={() => navigate("/home")}
+                  onComplete={() => navigate("/home")}
+                />
               </ProtectedRoute>
             }
           />
@@ -161,24 +178,22 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
+        </Route>
 
-          {/* ---------- Default + 404 ---------- */}
-          <Route path="/" element={<Navigate to="/home" replace />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Footer />
-      </DeviceProvider>
-    </div>
-
+        {/* ========== DEFAULT / 404 ========== */}
+        <Route path="/" element={<Navigate to="/home" replace />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </DeviceProvider>
   );
 };
 
-/* -------------------- Main App -------------------- */
+/* ================= MAIN APP ================= */
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), 4000); // show splash for 4 seconds
+    const timer = setTimeout(() => setShowSplash(false), 4000);
     return () => clearTimeout(timer);
   }, []);
 

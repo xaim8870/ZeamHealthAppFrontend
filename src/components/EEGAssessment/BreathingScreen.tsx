@@ -1,112 +1,96 @@
-import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Wind } from "lucide-react";
 
-interface BreathingScreenProps {
-  onComplete: () => void;
+interface Props {
+  mode: "instruction" | "breathing";
+  breathLabel: "Inhale" | "Exhale";
 }
 
-const TOTAL_DURATION = 30; // seconds
-
-// Only inhale & exhale
-const PHASES = [
-  { label: "Inhale", duration: 4 },
-  { label: "Exhale", duration: 6 },
-];
-
-const BreathingScreen: React.FC<BreathingScreenProps> = ({ onComplete }) => {
-  const [phaseIndex, setPhaseIndex] = useState(0);
-
-  /* ================= AUTO COMPLETE ================= */
-  useEffect(() => {
-    const timer = setTimeout(onComplete, TOTAL_DURATION * 1000);
-    return () => clearTimeout(timer);
-  }, [onComplete]);
-
-  /* ================= PHASE CYCLING ================= */
-  useEffect(() => {
-    const phase = PHASES[phaseIndex];
-    const timer = setTimeout(() => {
-      setPhaseIndex((i) => (i + 1) % PHASES.length);
-    }, phase.duration * 1000);
-
-    return () => clearTimeout(timer);
-  }, [phaseIndex]);
-
-  const phase = PHASES[phaseIndex];
-  const isInhale = phase.label === "Inhale";
-  const isExhale = phase.label === "Exhale";
+const BreathingScreen: React.FC<Props> = ({
+  mode,
+  breathLabel,
+}) => {
+  const isInhale = breathLabel === "Inhale";
 
   return (
     <div
       className="
-        w-full max-w-md h-[420px]
-        rounded-3xl p-6
+        relative w-full max-w-md h-[380px]
         bg-gradient-to-br from-[#0b0f17] to-[#05070b]
         border border-gray-800
-        shadow-[0_0_60px_rgba(34,211,238,0.08)]
+        rounded-b-3xl
         flex flex-col items-center justify-center
-        space-y-10
+        px-6 text-center
       "
     >
-      {/* Single-line instruction */}
-      <p className="text-center text-sm text-cyan-200/80 tracking-wide">
-        Breathe slowly through your nose and remain still
-      </p>
-
-      {/* Phase label */}
-      <motion.p
-        key={phase.label}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center text-2xl font-medium tracking-wide text-cyan-300"
-      >
-        {phase.label}
-      </motion.p>
-
-      {/* Breathing Orb */}
-      <div className="flex justify-center">
-        <div className="relative w-48 h-48 flex items-center justify-center">
-          {/* Outer pulse */}
+      <AnimatePresence mode="wait">
+        {mode === "instruction" && (
           <motion.div
-            className="absolute inset-0 rounded-full border border-cyan-400/30"
-            animate={{
-              scale: isInhale ? 1.15 : 0.9,
-              opacity: [0.3, 0.6, 0.3],
-            }}
-            transition={{
-              duration: phase.duration,
-              ease: "easeInOut",
-            }}
-          />
+            key="instruction"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="space-y-4"
+          >
+            <Wind className="w-8 h-8 mx-auto text-cyan-400" />
+            <h3 className="text-xl font-semibold">
+              Guided Breathing
+            </h3>
+            <p className="text-sm text-gray-400 max-w-xs mx-auto">
+              Breathe slowly through your nose and remain still.
+            </p>
+          </motion.div>
+        )}
 
-          {/* Glow */}
+        {mode === "breathing" && (
           <motion.div
-            className="absolute inset-6 rounded-full bg-cyan-400/10 blur-xl"
-            animate={{
-              scale: isInhale ? 1.3 : 0.8,
-            }}
-            transition={{
-              duration: phase.duration,
-              ease: "easeInOut",
-            }}
-          />
+            key="breathing"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center space-y-10"
+          >
+            <motion.p
+              key={breathLabel}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-2xl font-medium text-cyan-300"
+            >
+              {breathLabel}
+            </motion.p>
 
-          {/* Core orb */}
-          <motion.div
-            className="
-              w-24 h-24 rounded-full
-              bg-gradient-to-br from-cyan-300/40 to-cyan-500/20
-            "
-            animate={{
-              scale: isInhale ? 1.4 : 0.7,
-            }}
-            transition={{
-              duration: phase.duration,
-              ease: "easeInOut",
-            }}
-          />
-        </div>
-      </div>
+            <div className="relative w-48 h-48 flex items-center justify-center">
+              <motion.div
+                className="absolute inset-0 rounded-full border border-cyan-400/30"
+                animate={{
+                  scale: isInhale ? 1.15 : 0.9,
+                  opacity: [0.3, 0.6, 0.3],
+                }}
+                transition={{ duration: 4, ease: "easeInOut" }}
+              />
+
+              <motion.div
+                className="absolute inset-6 rounded-full bg-cyan-400/10 blur-xl"
+                animate={{
+                  scale: isInhale ? 1.3 : 0.8,
+                }}
+                transition={{ duration: 4, ease: "easeInOut" }}
+              />
+
+              <motion.div
+                className="
+                  w-24 h-24 rounded-full
+                  bg-gradient-to-br from-cyan-300/40 to-cyan-500/20
+                "
+                animate={{
+                  scale: isInhale ? 1.4 : 0.7,
+                }}
+                transition={{ duration: 4, ease: "easeInOut" }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

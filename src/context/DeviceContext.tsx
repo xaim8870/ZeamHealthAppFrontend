@@ -2,6 +2,9 @@ import React, { createContext, useContext, useState } from "react";
 import type { Neurosity } from "@neurosity/sdk";
 import { logoutNeurosity } from "../utils/NeurosityClient";
 import { MuseRecorder } from "@/services/eeg/MuseRecorder";
+import { useEEGRecorder } from "@/hooks/useEEGRecorder";
+
+/* ===================== TYPES ===================== */
 
 type DeviceType = "neurosity" | "muse" | null;
 
@@ -11,6 +14,8 @@ interface DeviceState {
 
   neurosity: Neurosity | null;
   museRecorder: MuseRecorder | null;
+
+  recorder: ReturnType<typeof useEEGRecorder>;
 
   setConnection: (
     status: boolean,
@@ -23,9 +28,14 @@ interface DeviceState {
 
 const DeviceContext = createContext<DeviceState | undefined>(undefined);
 
+/* ===================== PROVIDER ===================== */
+
 export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  /* 🔒 EEG Recorder — CREATED ONCE, LEGALLY */
+  const recorder = useEEGRecorder();
+
   const [isConnected, setIsConnected] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<DeviceType>(null);
 
@@ -52,15 +62,10 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const disconnectDevice = () => {
-    // Fix: MuseRecorder has stop() method now, or use stopStreaming()
-    if (museRecorder) {
-      // Option 1: If MuseRecorder has stop() method
-      museRecorder.stop?.();
-      // Option 2: Or if it has stopStreaming() method
-      // museRecorder.stopStreaming?.();
-    }
-    
+    museRecorder?.stop?.();
     logoutNeurosity(neurosity);
+
+    recorder.stop(); // ✅ stop EEG cleanly
 
     setIsConnected(false);
     setSelectedDevice(null);
@@ -75,6 +80,7 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
         selectedDevice,
         neurosity,
         museRecorder,
+        recorder,
         setConnection,
         disconnectDevice,
       }}
@@ -83,6 +89,8 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
     </DeviceContext.Provider>
   );
 };
+
+/* ===================== HOOK ===================== */
 
 export const useDevice = () => {
   const ctx = useContext(DeviceContext);

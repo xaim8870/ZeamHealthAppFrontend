@@ -19,75 +19,49 @@ const ConnectMuse: React.FC = () => {
   };
 
   const handleConnect = async () => {
-    if (connecting) return;
-    
-    setConnecting(true);
-    setDebugLogs([]);
-    setStatus("🔍 Searching for Muse devices...");
-    addDebugLog("Starting connection process");
+  if (connecting) return;
 
-    try {
-      // Create adapter
-      const adapter = new UniversalMuseAdapter();
-      addDebugLog("UniversalMuseAdapter created");
-      
-      // Connect
-      addDebugLog("Attempting to connect...");
-      await adapter.connect();
-      addDebugLog("Adapter connected successfully");
-      
-      // Setup data listener
-      const unsubscribe = adapter.onData((frame) => {
-        addDebugLog(`EEG: ${frame.values.map(v => v.toFixed(1)).join(', ')} µV`);
-      });
-      
-      // Start streaming
-      addDebugLog("Starting EEG stream...");
-      await adapter.start();
-      addDebugLog("EEG streaming active!");
-      
-      // Create recorder - NOW IT WILL WORK WITH UniversalMuseAdapter
-      const recorder = new MuseRecorder(adapter);
-      addDebugLog("Recorder created");
-      
-      // Update global state
-      setConnection(true, "muse", recorder);
-      addDebugLog("Global state updated");
-      
-      setStatus("🎉 Connected! Starting EEG sessions...");
-      addDebugLog("Redirecting to mind module");
-      
-      // Clean up on unmount
-      return () => {
-        unsubscribe();
-        if (adapter.isRunning()) {
-          adapter.stop();
-        }
-      };
-      
-    } catch (error: any) {
-      console.error("Connection error:", error);
-      addDebugLog(`ERROR: ${error.message}`);
-      
-      let errorMessage = "❌ Connection failed";
-      
-      if (error.message.includes("No Muse device found")) {
-        errorMessage = `❌ No Muse found.\n\nTroubleshooting:\n1. Power ON Muse (hold 5+ seconds)\n2. Lights should blink purple/blue\n3. Forget from phone/PC Bluetooth\n4. Move closer to computer`;
-      } else if (error.message.includes("Web Bluetooth not supported")) {
-        errorMessage = "❌ Browser not supported.\nUse Chrome/Edge on desktop\nEnable experimental Web Bluetooth flag";
-      } else if (error.message.includes("Bluetooth connection failed")) {
-        errorMessage = "❌ Bluetooth error.\n• Windows Bluetooth often fails\n• Try macOS/Linux if possible\n• Use Muse Direct app to test first";
-      } else if (error.message.includes("No Muse EEG service found")) {
-        errorMessage = "❌ Device incompatible.\nYour Muse S BBA3 may need:\n• Firmware update via Muse Direct\n• Factory reset (hold 20+ seconds)";
-      } else if (error.message.includes("timeout")) {
-        errorMessage = "❌ Connection timeout.\n• Ensure Muse is fully charged\n• Restart computer Bluetooth";
-      }
-      
-      setStatus(errorMessage);
-    } finally {
-      setConnecting(false);
-    }
-  };
+  setConnecting(true);
+  setDebugLogs([]);
+  setStatus("🔍 Searching for Muse devices...");
+  addDebugLog("Starting connection process");
+
+  try {
+    const adapter = new UniversalMuseAdapter();
+    addDebugLog("UniversalMuseAdapter created");
+
+    addDebugLog("Attempting to connect...");
+    await adapter.connect();
+    addDebugLog("Adapter connected successfully");
+
+    // ✅ Start the adapter BEFORE creating recorder
+    addDebugLog("Starting EEG stream...");
+    
+
+    const recorder = new MuseRecorder(adapter);
+    addDebugLog("Recorder created");
+
+    
+
+    setConnection(true, "muse", recorder);
+    addDebugLog("Global state updated");
+
+    setStatus("🎉 Connected! Starting EEG sessions...");
+    addDebugLog("Redirecting to mind module");
+
+    // ✅ Add small delay to ensure everything is ready
+    setTimeout(() => {
+      navigate("/mind", { replace: true });
+    }, 500);
+   } catch (error: any) {
+    console.error("Connection error:", error);
+    addDebugLog(`ERROR: ${error.message}`);
+    setStatus("❌ Connection failed");
+  } finally {
+    setConnecting(false);
+  }
+};
+
 
   const handleReset = () => {
     setStatus("Ready to connect");
