@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { unlockAudio } from "../../utils/playBeep";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -183,7 +183,7 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3">
-                    <Button onClick={() => {unlockAudio(); navigate("/eeg/assessment");   }}>
+                    <Button onClick={() => { navigate("/eeg/assessment");   }}>
                       EEG Assessment
                     </Button>
 

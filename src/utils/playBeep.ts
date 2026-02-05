@@ -1,50 +1,55 @@
-let audioContext: AudioContext | null = null;
+// src/utils/playBeep.ts
+let beepAudio: HTMLAudioElement | null = null;
 
-const getCtx = () => {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+/** Create/reuse the beep element */
+const getBeep = () => {
+  if (!beepAudio) {
+    beepAudio = new Audio("/assets/beep.mp3");
+    beepAudio.preload = "auto";
+    beepAudio.volume = 0.5; // adjust
   }
-  return audioContext;
+  return beepAudio;
 };
 
-/** Optional: call once on a user click to unlock audio */
+/** Call once on a user interaction (Start button etc.) */
 export const unlockAudio = async () => {
-  const ctx = getCtx();
-  if (ctx.state === "suspended") {
-    try {
-      await ctx.resume();
-    } catch {
-      // ignore
-    }
+  const a = getBeep();
+  try {
+    // try to "prime" playback to satisfy autoplay restrictions
+    a.muted = true;
+    await a.play();
+    a.pause();
+    a.currentTime = 0;
+    a.muted = false;
+  } catch {
+    // ignore (some browsers still block until another gesture)
   }
 };
 
 export const playBeep = async () => {
-  const ctx = getCtx();
-
-  // ✅ CRITICAL: resume if suspended (otherwise silent on many devices)
-  if (ctx.state === "suspended") {
-    try {
-      await ctx.resume();
-    } catch {
-      return; // blocked by autoplay policy
-    }
+  const a = getBeep();
+  try {
+    a.currentTime = 0; // replay instantly
+    await a.play();
+  } catch {
+    // blocked by autoplay policy (means unlockAudio wasn't triggered by a gesture)
   }
+};
+// this function unlocks music playback on user gesture
+let musicUnlockEl: HTMLAudioElement | null = null;
 
-  const oscillator = ctx.createOscillator();
-  const gainNode = ctx.createGain();
+export const unlockMusic = async () => {
+  try {
+    // pick ANY one of your music tracks (doesn't matter which for unlocking)
+    musicUnlockEl ??= new Audio("/assets/music/AXIS1173_17_Calm_Full.wav");
+    musicUnlockEl.loop = true;
+    musicUnlockEl.volume = 0;     // silent
+    musicUnlockEl.preload = "auto";
 
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-
-  // smooth envelope (prevents click + increases audibility)
-  gainNode.gain.setValueAtTime(0.0001, ctx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.10, ctx.currentTime + 0.01);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
-
-  oscillator.connect(gainNode);
-  gainNode.connect(ctx.destination);
-
-  oscillator.start();
-  oscillator.stop(ctx.currentTime + 0.16);
+    await musicUnlockEl.play();   // ✅ this is the key (must happen on user gesture)
+    musicUnlockEl.pause();
+    musicUnlockEl.currentTime = 0;
+  } catch (e) {
+    console.warn("unlockMusic failed:", e);
+  }
 };

@@ -42,28 +42,47 @@ const EyesClosedOpen: React.FC<Props> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    if (!audioRef.current) {
-      const track =
-        MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)];
-      const audio = new Audio(track);
-      audio.loop = true;
-      audio.volume = MUSIC_VOLUME;
-      audio.preload = "auto";
-      audioRef.current = audio;
-    }
+  if (!audioRef.current) {
+    const track =
+      MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)];
 
-    // ▶ Play music during BOTH eyes-closed + eyes-open when running
-    if (phase === "running") {
-      audioRef.current.play().catch(() => {});
-    } else {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
+    const audio = new Audio(track);
 
-    return () => {
-      audioRef.current?.pause();
-    };
-  }, [phase]);
+    // ✅ ADD LISTENERS HERE (right after creation)
+    audio.addEventListener("canplaythrough", () =>
+      console.log("🎵 music canplaythrough")
+    );
+    audio.addEventListener("play", () => console.log("▶️ music play event"));
+    audio.addEventListener("pause", () => console.log("⏸️ music pause event"));
+    audio.addEventListener("error", (e) => console.warn("❌ music error", e));
+
+    audio.loop = true;
+    audio.volume = MUSIC_VOLUME;
+    audio.preload = "auto";
+    audioRef.current = audio;
+  }
+
+  if (phase === "running") {
+    audioRef.current.play().catch((err) => {
+      console.warn("🔇 Background music play() blocked:", err);
+      console.log("phase:", phase, "stage:", stage);
+      console.log(
+        "readyState:",
+        audioRef.current?.readyState,
+        "paused:",
+        audioRef.current?.paused
+      );
+    });
+  } else {
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+  }
+
+  return () => {
+    audioRef.current?.pause();
+  };
+}, [phase]);
+
 
   /* ================= BEEP WHEN EYES-CLOSED COMPLETES ONLY ================= */
   const prevTimeLeftRef = useRef<number>(timeLeft);
@@ -71,8 +90,10 @@ const EyesClosedOpen: React.FC<Props> = ({
 
   // Reset beep flag when a NEW eyes-closed running segment begins
   useEffect(() => {
-    if (phase === "running" && stage === "closed") {
+    if (phase === "running") {
       beepedForClosedRunRef.current = false;
+      console.log("⏱️", { stage, phase, timeLeft, prev: prevTimeLeftRef.current });
+
     }
   }, [phase, stage]);
 
@@ -80,11 +101,11 @@ const EyesClosedOpen: React.FC<Props> = ({
     const prev = prevTimeLeftRef.current;
 
     if (
-      stage === "closed" &&
       phase === "running" &&
-      prev > 0 &&
-      timeLeft <= 0 &&
+      prev > 1 &&
+      timeLeft <= 1 &&
       !beepedForClosedRunRef.current
+      
     ) {
       beepedForClosedRunRef.current = true;
       playBeep(); // ✅ now resumes AudioContext internally

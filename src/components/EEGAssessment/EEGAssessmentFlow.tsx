@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { unlockAudio, unlockMusic, playBeep } from "@/utils/playBeep";
+
 
 import EEGQuestionnaire from "./EEGQuestionnaire";
 import GetReady from "./GetReady";
@@ -39,6 +41,9 @@ const alphaReactiveClosedMs = 30_000;
 const alphaReactiveOpenMs = 30_000;
 /** Optional. If you want breathing phase, keep 30s; if not, set to 0 */
 const alphaReactiveBreathingMs = 30_000;
+
+const mentalSubtractionMs = 50_000;
+
 
 const HARD_FAILSAFE_EXTRA_MS = 4000; // prevents “stuck” no matter what
 
@@ -101,9 +106,9 @@ const EEGAssessmentFlow: React.FC<{
   const totalMs = useMemo(() => {
     // Total across the “timed” part (excluding questionnaire + postEEG)
     const alphaReactiveTotal =
-      instructionMs +
-      alphaReactiveClosedMs +
-      alphaReactiveOpenMs +
+      // 2 cycles: (instruction + closed + instruction + open) * 2
+      2 * (instructionMs + alphaReactiveClosedMs + instructionMs + alphaReactiveOpenMs) +
+      // optional breathing after 2 cycles
       Math.max(0, alphaReactiveBreathingMs);
 
     return (
@@ -111,13 +116,16 @@ const EEGAssessmentFlow: React.FC<{
       (instructionMs + eyesClosedMs + instructionMs + eyesOpenMs) +
       (instructionMs + alphaRestTaskMs) +
       (instructionMs + breathingTaskMs) +
-      alphaReactiveTotal
+      alphaReactiveTotal +
+      mentalSubtractionMs 
       // mentalSubtraction is user-paced in your current component; exclude from progress bar
     );
   }, []);
 
   const elapsedMsRef = useRef(0);
   const [overallProgress, setOverallProgress] = useState(0);
+  const lastProgressTickRef = useRef<number | null>(null);
+
 
   /* ======================================================
      Per-step UI state (presentational screens consume these)
@@ -144,6 +152,12 @@ const EEGAssessmentFlow: React.FC<{
   const [alphaReactiveProgress, setAlphaReactiveProgress] = useState(0);
   const [alphaReactiveTimeLeft, setAlphaReactiveTimeLeft] = useState(0);
   const [alphaReactiveTotalSec, setAlphaReactiveTotalSec] = useState(1);
+  useEffect(() => {
+    if (step === "postEEG") {
+      lastProgressTickRef.current = null;
+      
+    }
+  }, [step]);
 
   /* =====================================================================
      ✅ WINDOW CAPTURE (THIS FIXES EMPTY TRIMMED RECORDS)
@@ -195,6 +209,50 @@ const EEGAssessmentFlow: React.FC<{
       recorder.closeWindow();
     };
   }, [step, breathingMode, recorder]);
+
+
+  // Beep Effect for Alpha Reactive Sessions
+  const alphaReactivePrevRef = useRef<number>(0);
+  const alphaReactiveBeepedRef = useRef(false);
+
+useEffect(() => {
+  if (step !== "alphaReactive") return;
+
+  const isWheelPhase =
+    alphaReactivePhase === "eyesClosed" || alphaReactivePhase === "eyesOpen";
+
+  // reset beep for each new wheel run
+  if (alphaReactiveMode === "running" && isWheelPhase) {
+    alphaReactiveBeepedRef.current = false;
+  }
+
+  // track prev
+  alphaReactivePrevRef.current = alphaReactiveTimeLeft;
+}, [step, alphaReactiveMode, alphaReactivePhase]);
+
+// Beep Trigger Effect:
+useEffect(() => {
+  if (step !== "alphaReactive") return;
+
+  const isWheelPhase =
+    alphaReactivePhase === "eyesClosed" || alphaReactivePhase === "eyesOpen";
+
+  if (!(alphaReactiveMode === "running" && isWheelPhase)) return;
+
+  const prev = alphaReactivePrevRef.current;
+
+  // drift-safe: beep when it reaches 1 or 0
+  if (
+    prev > 1 &&
+    alphaReactiveTimeLeft <= 1 &&
+    !alphaReactiveBeepedRef.current
+  ) {
+    alphaReactiveBeepedRef.current = true;
+    playBeep();
+  }
+
+  alphaReactivePrevRef.current = alphaReactiveTimeLeft;
+}, [step, alphaReactiveMode, alphaReactivePhase, alphaReactiveTimeLeft]);
 
   // Alpha Reactive: open window during running phases (including imageBreathing if you want it captured too)
   useEffect(() => {
@@ -249,12 +307,57 @@ const EEGAssessmentFlow: React.FC<{
   };
 
   // Update overall progress as time passes (only during timed steps)
-  const tickOverall = (delta: number) => {
-    elapsedMsRef.current += delta;
-    setOverallProgress(
-      Math.max(0, Math.min(1, elapsedMsRef.current / totalMs))
-    );
-  };
+  const tickOverall = React.useCallback(
+    (delta: number) => {
+      elapsedMsRef.current += delta;
+      setOverallProgress(Math.max(0, Math.min(1, elapsedMsRef.current / totalMs)));
+    },
+    [totalMs]
+  );
+
+
+  /**
+ * ✅ Overall progress ticker (time-based, drift-safe)
+ * We compute the global progress bar using real elapsed wall-clock time rather than relying on
+ * step setTimeouts or UI countdown intervals (which can drift / desync).
+ *
+ * - Runs only during the timed steps (getReady, eyes, alphaResting, breathing, alphaReactive)
+ * - Uses Date.now() deltas to accumulate elapsedMsRef
+ * - Updates overallProgress as a clamped ratio of elapsedMsRef / totalMs
+ * - Pauses automatically on non-timed steps (questionnaire, mentalSubtraction, postEEG)
+ */
+useEffect(() => {
+  const isTimedStep =
+    step === "getReady" ||
+    step === "eyes" ||
+    step === "alphaResting" ||
+    step === "breathing" ||
+    step === "alphaReactive"||
+    step === "mentalSubtraction";
+
+  if (!isTimedStep) {
+    lastProgressTickRef.current = null;
+    return;
+  }
+
+  const id = window.setInterval(() => {
+    const now = Date.now();
+
+    if (lastProgressTickRef.current === null) {
+      lastProgressTickRef.current = now;
+      return;
+    }
+
+    const delta = now - lastProgressTickRef.current;
+    lastProgressTickRef.current = now;
+
+    // ✅ your existing helper
+    tickOverall(delta);
+  }, 200);
+
+  return () => window.clearInterval(id);
+}, [step, tickOverall]);
+
 
   /* ================= STEP: getReady ================= */
   useEffect(() => {
@@ -689,6 +792,12 @@ const EEGAssessmentFlow: React.FC<{
           {step === "questionnaire" && (
             <EEGQuestionnaire
               onComplete={async () => {
+                await unlockAudio(); // ✅ unlock audio on user gesture before any beep attempts
+                await unlockMusic(); // ✅ unlock music AudioContext
+                // ✅ reset progress at the true start
+                elapsedMsRef.current = 0;
+                lastProgressTickRef.current = null;
+                setOverallProgress(0);
                 await startRecordingOnce();
                 setStep("getReady");
               }}
@@ -705,6 +814,7 @@ const EEGAssessmentFlow: React.FC<{
               totalTime={
                 eyesStage === "closed" ? eyesClosedMs / 1000 : eyesOpenMs / 1000
               }
+            // step={step}
             />
           )}
 
