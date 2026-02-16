@@ -1,501 +1,535 @@
-import type { EEGFrame, EEGAdapter, DeviceInfo, DeviceType, AdapterType } from "./EEGAdapter";
+import type { EEGFrame, EEGAdapter, DeviceInfo } from "./EEGAdapter";
 
 export class UniversalMuseAdapter implements EEGAdapter {
   private device: BluetoothDevice | null = null;
   private server: BluetoothRemoteGATTServer | null = null;
-  private running = false;
-  private callbacks: ((f: EEGFrame) => void)[] = [];
+
   private eegChar: BluetoothRemoteGATTCharacteristic | null = null;
   private controlChar: BluetoothRemoteGATTCharacteristic | null = null;
-  
+
+  private eegHandler?: (event: Event) => void;
+  private controlHandler?: (event: Event) => void;
+
+  private callbacks: ((f: EEGFrame) => void)[] = [];
+
+  private running = false; // becomes true only after real frames parsed
+  private wantAutoReconnect = false;
+  private reconnecting = false;
+  private readonly MAX_RECONNECT = 5;
+
+  private packetCount = 0;
+
+  // first-frame gate (so start() resolves only when real EEG frames flow)
+  private awaitingFirstFrame = false;
+  private firstFrameResolve: (() => void) | null = null;
+  private firstFrameTimer: number | null = null;
+
   private deviceInfo: DeviceInfo = {
-    id: '',
-    name: 'Unknown Muse',
-    type: 'unknown',
-    manufacturer: 'Interaxon',
+    id: "",
+    name: "Unknown Muse",
+    type: "unknown",
+    manufacturer: "Interaxon",
     channels: 4,
-    samplingRate: 256
+    samplingRate: 256,
   };
 
-  // ✅ Common Muse service UUID
-  private readonly MUSE_SERVICE_UUID = '0000fe8d-0000-1000-8000-00805f9b34fb';
-  
-  // Try ALL known Muse UUIDs
-  private readonly KNOWN_EEG_UUIDS = [
-    '273e0003-4c4d-454d-96be-f03bac821358', // Standard Muse EEG
-    '273e000b-4c4d-454d-96be-f03bac821358', // Alternative 1
-    '273e000c-4c4d-454d-96be-f03bac821358', // Alternative 2
-    '6e400003-b5a3-f393-e0a9-e50e24dcca9e', // Nordic UART RX
-    '273e0003-0000-1000-8000-00805f9b34fb', // Some Muse 2
-    '273e0003-0001-1000-8000-00805f9b34fb', // Some Muse S
-  ];
-  
-  private readonly KNOWN_CONTROL_UUIDS = [
-    '273e0001-4c4d-454d-96be-f03bac821358', // Standard control
-    '6e400002-b5a3-f393-e0a9-e50e24dcca9e', // Nordic UART TX
-    '273e0002-4c4d-454d-96be-f03bac821358', // Alternative control
-  ];
+  private readonly MUSE_SERVICE_UUID = "0000fe8d-0000-1000-8000-00805f9b34fb";
+  private readonly CONTROL_UUID = "273e0001-4c4d-454d-96be-f03bac821358";
+  private readonly EEG_COMBINED_UUID = "273e0013-4c4d-454d-96be-f03bac821358";
+  private readonly EEG_TP9_UUID = "273e0003-4c4d-454d-96be-f03bac821358";
 
   async connect(): Promise<boolean> {
     if (!navigator.bluetooth) {
-      throw new Error('Web Bluetooth not supported. Use Chrome/Edge on desktop.');
+      throw new Error("Web Bluetooth not supported. Use Chrome/Edge on desktop.");
     }
 
     console.log("🚀 Starting Muse device connection...");
-    
-    try {
-      // Step 1: Request device
-      this.device = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: 'Muse' }],
-        optionalServices: [this.MUSE_SERVICE_UUID],
-      });
 
-      if (!this.device) {
-        throw new Error('No device selected');
-      }
+    this.device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: "Muse" }],
+      optionalServices: [this.MUSE_SERVICE_UUID],
+    });
 
-      console.log(`✅ Device selected: ${this.device.name}`);
-      console.log(`📱 Device ID: ${this.device.id}`);
-      
-      // Add disconnect listener
-      this.device.addEventListener('gattserverdisconnected', () => {
-        console.warn('⚠️ Device disconnected unexpectedly');
-        this.running = false;
-        this.server = null;
-      });
+    if (!this.device) throw new Error("No device selected");
+    if (!this.device.gatt) throw new Error("Device doesn't support GATT");
 
-      // Update device info
-      this.deviceInfo.id = this.device.id;
-      this.deviceInfo.name = this.device.name || 'Unknown Muse';
-      
-      // Detect Muse model
-      if (this.device.name?.includes('MuseS') || this.device.name?.includes('BBA3')) {
-        this.deviceInfo.type = 'muse-s';
-        this.deviceInfo.manufacturer = 'Interaxon (Muse S)';
-        this.deviceInfo.channels = 4;
-        this.deviceInfo.samplingRate = 256;
-      } else if (this.device.name?.includes('Muse-2') || this.device.name?.includes('Muse 2')) {
-        this.deviceInfo.type = 'muse-2';
-        this.deviceInfo.manufacturer = 'Interaxon (Muse 2)';
-        this.deviceInfo.channels = 5;
-        this.deviceInfo.samplingRate = 256;
-      } else {
-        this.deviceInfo.type = 'muse';
-        this.deviceInfo.manufacturer = 'Interaxon (Muse)';
-        this.deviceInfo.channels = 4;
-        this.deviceInfo.samplingRate = 256;
-      }
+    console.log(`✅ Device selected: ${this.device.name}`);
+    console.log(`📱 Device ID: ${this.device.id}`);
 
-      console.log(`🤖 Detected: ${this.deviceInfo.type} with ${this.deviceInfo.channels} channels`);
+    // stable listener
+    this.device.addEventListener("gattserverdisconnected", this.onDisconnected);
 
-      // Step 2: Connect to GATT server with retry logic
-      if (!this.device.gatt) {
-        throw new Error("Device doesn't support GATT");
-      }
+    this.deviceInfo.id = this.device.id;
+    this.deviceInfo.name = this.device.name || "Unknown Muse";
 
-      // ✅ CRITICAL FIX: Add connection retry logic
-      let retries = 3;
-      while (retries > 0) {
-        try {
-          console.log(`🔗 Connecting to GATT (attempt ${4 - retries}/3)...`);
-          
-          this.server = await this.device.gatt.connect();
-          
-          // ✅ ADDED: Wait a moment to ensure connection is stable
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          if (this.server.connected) {
-            console.log('✅ GATT Server connected and stable');
-            console.log(`🔗 Server connected: ${this.server.connected}`);
-            break;
-          } else {
-            throw new Error('Server not connected after connect()');
-          }
-        } catch (connectError) {
-          retries--;
-          if (retries === 0) throw connectError;
-          console.warn(`Connection failed, retrying... (${retries} left)`);
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      // ✅ ADDED: Double-check connection before proceeding
-      if (!this.server || !this.server.connected) {
-        throw new Error('Failed to establish stable GATT connection');
-      }
-
-      // Step 3: Get service with timeout
-      console.log(`🔍 Getting service: ${this.MUSE_SERVICE_UUID}`);
-      
-      const servicePromise = this.server.getPrimaryService(this.MUSE_SERVICE_UUID);
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Service discovery timeout')), 5000);
-      });
-
-      const service = await Promise.race([servicePromise, timeoutPromise]);
-      console.log('✅ Service found');
-
-      // Step 4: 🚀 CRITICAL FIX - Get ALL characteristics and examine them
-      console.log('🔍 Discovering ALL characteristics...');
-      const allCharacteristics = await service.getCharacteristics();
-      console.log(`📋 Found ${allCharacteristics.length} characteristics:`);
-      
-      // Log all characteristics with their properties
-      allCharacteristics.forEach((char, index) => {
-        const props = this.getCharacteristicProperties(char);
-        console.log(`   ${index + 1}. ${char.uuid} (${props.join(', ')})`);
-        
-        // Log the first few bytes of known UUIDs to help identify them
-        if (char.uuid.includes('273e') || char.uuid.includes('0003') || char.uuid.includes('0001')) {
-          console.log(`       ↳ Likely Muse characteristic`);
-        }
-      });
-
-      // Step 5: Identify EEG and Control characteristics by examining properties
-      console.log('🎯 Identifying EEG and Control characteristics...');
-      
-      for (const char of allCharacteristics) {
-        const props = this.getCharacteristicProperties(char);
-        const uuid = char.uuid.toLowerCase();
-        
-        console.log(`   Examining ${uuid}: ${props.join(', ')}`);
-        
-        // Look for EEG characteristic (usually has "notify" property)
-        if (props.includes('notify') && !this.eegChar) {
-          // Check if it's in known EEG UUIDs or has EEG-like pattern
-          if (this.KNOWN_EEG_UUIDS.includes(uuid) || 
-              uuid.includes('0003') || 
-              uuid.includes('000b') ||
-              uuid.includes('000c')) {
-            this.eegChar = char;
-            console.log(`✅ Found EEG characteristic by UUID: ${uuid}`);
-          } else if (props.includes('notify') && !props.includes('write')) {
-            // If it has notify but no write, it's likely EEG data
-            this.eegChar = char;
-            console.log(`⚠️ Guessing EEG characteristic by properties: ${uuid} (${props.join(', ')})`);
-          }
-        }
-        
-        // Look for Control characteristic (usually has "write" property)
-        if (props.includes('write') && !this.controlChar) {
-          if (this.KNOWN_CONTROL_UUIDS.includes(uuid) || 
-              uuid.includes('0001') || 
-              uuid.includes('0002')) {
-            this.controlChar = char;
-            console.log(`✅ Found Control characteristic: ${uuid}`);
-          }
-        }
-      }
-
-      // Step 6: Fallback - If we didn't find EEG by UUID, try by properties
-      if (!this.eegChar) {
-        console.log('🔄 Fallback: Looking for EEG by properties only...');
-        for (const char of allCharacteristics) {
-          const props = this.getCharacteristicProperties(char);
-          
-          // EEG data characteristics typically have "notify" and NOT "write"
-          if (props.includes('notify') && !props.includes('write')) {
-            this.eegChar = char;
-            console.log(`🎯 Selected EEG characteristic by properties: ${char.uuid} (${props.join(', ')})`);
-            break;
-          }
-        }
-      }
-
-      // Step 7: If still no EEG, try any characteristic with notify
-      if (!this.eegChar) {
-        console.log('🆘 Last resort: Looking for ANY characteristic with notify...');
-        for (const char of allCharacteristics) {
-          const props = this.getCharacteristicProperties(char);
-          if (props.includes('notify')) {
-            this.eegChar = char;
-            console.log(`🆘 Using any notify characteristic as EEG: ${char.uuid}`);
-            break;
-          }
-        }
-      }
-
-      if (!this.eegChar) {
-        // Log all characteristics for debugging
-        console.error('❌ Could not find EEG characteristic. Available characteristics:');
-        allCharacteristics.forEach((char, index) => {
-          console.error(`   ${index + 1}. ${char.uuid} (${this.getCharacteristicProperties(char).join(', ')})`);
-        });
-        throw new Error('Could not find any EEG data characteristic on device');
-      }
-
-      // Control characteristic is optional
-      if (!this.controlChar) {
-        console.warn('⚠️ No control characteristic found. EEG may still work, but initialization commands may fail.');
-        
-        // Try to find any write characteristic as fallback
-        for (const char of allCharacteristics) {
-          const props = this.getCharacteristicProperties(char);
-          if (props.includes('write') && !this.controlChar) {
-            this.controlChar = char;
-            console.log(`⚠️ Using write characteristic as control: ${char.uuid}`);
-            break;
-          }
-        }
-      }
-
-      console.log('✅ Characteristics identified successfully');
-      console.log(`   EEG: ${this.eegChar.uuid}`);
-      console.log(`   Control: ${this.controlChar ? this.controlChar.uuid : 'none'}`);
-      
-      return true;
-
-    } catch (error: any) {
-      console.error('❌ Connection error:', error);
-      
-      // Provide user-friendly error messages
-      let errorMessage = 'Connection failed';
-      
-      if (error.message.includes('Could not find any EEG data characteristic')) {
-        errorMessage = 'Device connected but EEG service not found.\n• Your Muse S BBA3 may need firmware update\n• Use Muse Direct app first to initialize device';
-      } else if (error.message.includes('GATT Server is disconnected')) {
-        errorMessage = 'Bluetooth connection lost.\n• Move device closer\n• Ensure Muse is fully charged\n• Try reconnecting';
-      } else if (error.message.includes('timeout')) {
-        errorMessage = 'Connection timeout.\n• Restart Muse device\n• Factory reset (hold button 20+ seconds)\n• Try different USB port';
-      } else if (error.message.includes('Not found') || error.message.includes('No device selected')) {
-        errorMessage = 'No Muse device found.\n• Ensure Muse is ON\n• In pairing mode (blinking lights)\n• Bluetooth is enabled on computer';
-      }
-      
-      throw new Error(errorMessage);
+    if (this.device.name?.includes("MuseS") || this.device.name?.includes("BBA3")) {
+      this.deviceInfo.type = "muse-s";
+      this.deviceInfo.channels = 4;
+      this.deviceInfo.samplingRate = 256;
     }
+
+    console.log("🔗 Connecting to GATT...");
+    this.server = await this.device.gatt.connect();
+    console.log("✅ GATT Server connected");
+
+    await this.refreshCharacteristics();
+
+    console.log("✅ Connection complete");
+    return true;
   }
 
-  // Helper method to get characteristic properties
+  private onDisconnected = () => {
+    console.log("🔌 Device disconnected");
+    this.running = false;
+    this.server = null;
+
+    if (this.wantAutoReconnect) {
+      void this.tryReconnect();
+    }
+  };
+
+  private async refreshCharacteristics(): Promise<void> {
+    if (!this.server?.connected) throw new Error("GATT not connected");
+
+    console.log("🔍 Getting service...");
+    const service = await this.server.getPrimaryService(this.MUSE_SERVICE_UUID);
+    console.log("✅ Service found");
+
+    console.log("🔍 Getting characteristics...");
+    const characteristics = await service.getCharacteristics();
+    console.log(`📋 Found ${characteristics.length} characteristics`);
+
+    this.eegChar = null;
+    this.controlChar = null;
+
+    for (const char of characteristics) {
+      const uuid = char.uuid.toLowerCase();
+      const props = this.getCharacteristicProperties(char);
+      console.log(`   ${uuid} (${props.join(", ")})`);
+
+      if (uuid === this.CONTROL_UUID) {
+        this.controlChar = char;
+        console.log("✅ Found Control characteristic");
+      }
+
+      if (uuid === this.EEG_COMBINED_UUID) {
+        this.eegChar = char;
+        console.log("✅ Found EEG characteristic (273e0013)");
+      }
+
+      // fallback only if combined not present
+      if (!this.eegChar && uuid === this.EEG_TP9_UUID) {
+        this.eegChar = char;
+        console.log("✅ Found EEG fallback (273e0003)");
+      }
+    }
+
+    if (!this.controlChar) throw new Error("Control characteristic not found");
+    if (!this.eegChar) throw new Error("No EEG characteristic found (273e0013 / 273e0003)");
+  }
+
   private getCharacteristicProperties(char: BluetoothRemoteGATTCharacteristic): string[] {
-    const props = [];
-    if (char.properties.read) props.push('read');
-    if (char.properties.write) props.push('write');
-    if (char.properties.writeWithoutResponse) props.push('writeWithoutResponse');
-    if (char.properties.notify) props.push('notify');
-    if (char.properties.indicate) props.push('indicate');
-    if (char.properties.broadcast) props.push('broadcast');
-    if (char.properties.authenticatedSignedWrites) props.push('authenticatedSignedWrites');
+    const props: string[] = [];
+    if (char.properties.read) props.push("read");
+    if (char.properties.write) props.push("write");
+    if (char.properties.writeWithoutResponse) props.push("writeWithoutResponse");
+    if (char.properties.notify) props.push("notify");
+    if (char.properties.indicate) props.push("indicate");
     return props;
   }
 
-  async start(): Promise<void> {
-    if (!this.eegChar) {
-      throw new Error('Not connected. Call connect() first.');
-    }
+  private sleep(ms: number) {
+    return new Promise<void>((r) => setTimeout(r, ms));
+  }
 
-    console.log('🎵 Starting EEG streaming...');
-    this.running = true;
+  // Muse control command encoder: [len][ascii...]['\n']
+  private encodeCommand(cmd: string): Uint8Array {
+    const text = cmd.endsWith("\n") ? cmd : `${cmd}\n`;
+    const len = text.length; // includes newline
+    const out = new Uint8Array(1 + len);
+    out[0] = len;
+    for (let i = 0; i < len; i++) out[i + 1] = text.charCodeAt(i);
+    return out;
+  }
 
-    try {
-      // Enable notifications
-      await this.eegChar.startNotifications();
-      console.log('✅ Notifications enabled');
-      
-      // Set up data handler
-      this.eegChar.addEventListener('characteristicvaluechanged', this.handleData.bind(this));
-      console.log('✅ Data handler setup complete');
-      
-      // Send initialization commands if we have control characteristic
-      if (this.controlChar) {
-        try {
-          console.log('📡 Sending Muse initialization commands...');
-          
-          // Try different command sequences for different Muse models
-          const initCommands = [
-            new Uint8Array([0x02, 0x64, 0x0A]), // Enable EEG (most common)
-            new Uint8Array([0x02, 0x73, 0x0A]), // Resume
-            new Uint8Array([0x02, 0x6D, 0x0A]), // Enable Battery
-            new Uint8Array([0x04, 0x70, 0x0A]), // Enable PPG (for some models)
-          ];
-          
-          for (const command of initCommands) {
-            try {
-              // Just use writeValue - it will work with or without response
-              await this.controlChar.writeValue(command);
-              
-              console.log(`✅ Command sent: ${Array.from(command).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
-              await new Promise(resolve => setTimeout(resolve, 200));
-            } catch (cmdError) {
-              console.warn(`Command ${Array.from(command).map(b => b.toString(16)).join(' ')} failed:`, cmdError);
-            }
-          }
-        } catch (cmdError) {
-          console.warn('Control commands failed, but EEG may still work:', cmdError);
-        }
-      } else {
-        console.warn('⚠️ No control characteristic, skipping initialization commands');
-      }
-      
-      console.log('🎉 EEG streaming READY');
-      
-    } catch (error) {
-      console.error('❌ Start error:', error);
-      this.running = false;
-      throw error;
+  // ✅ Force true ArrayBuffer (avoids SharedArrayBuffer typing problems)
+  private toArrayBuffer(u8: Uint8Array): ArrayBuffer {
+    const ab = new ArrayBuffer(u8.byteLength);
+    new Uint8Array(ab).set(u8);
+    return ab;
+  }
+
+  private async writeControlBytes(cmdBytes: Uint8Array): Promise<void> {
+    if (!this.controlChar) throw new Error("No control characteristic");
+
+    const buffer = this.toArrayBuffer(cmdBytes);
+
+    const c: any = this.controlChar;
+    if (typeof c.writeValueWithoutResponse === "function") {
+      await c.writeValueWithoutResponse(buffer);
+    } else {
+      await this.controlChar.writeValue(buffer);
     }
   }
 
-  private handleData(event: Event) {
-    if (!this.running) return;
+  private waitForFirstFrame(timeoutMs: number): Promise<void> {
+    this.awaitingFirstFrame = true;
 
-    const characteristic = event.target as BluetoothRemoteGATTCharacteristic;
-    const value = characteristic.value;
-    
-    if (!value) {
-      console.warn('No data in characteristic value');
-      return;
-    }
+    if (this.firstFrameTimer) window.clearTimeout(this.firstFrameTimer);
+    this.firstFrameTimer = null;
 
-    try {
-      const dataView = new DataView(value.buffer);
-      const byteLength = dataView.byteLength;
-      
-      // Log first few packets for debugging
-      if (Math.random() < 0.01) {
-        console.log(`📦 Raw data: ${byteLength} bytes`);
-        
-        // Log first few bytes for debugging
-        const bytes = [];
-        for (let i = 0; i < Math.min(20, byteLength); i++) {
-          bytes.push(dataView.getUint8(i).toString(16).padStart(2, '0'));
-        }
-        console.log(`🔍 First ${bytes.length} bytes: ${bytes.join(' ')}`);
-      }
-      
-      // Parse Muse S data
-      const samples = this.parseMuseSData(dataView);
-      
-      if (samples.length === 0) {
-        return;
-      }
-      
-      const frame: EEGFrame = {
-        device: this.deviceInfo.type,
-        adapter: 'web-bluetooth',
-        ts: Date.now(),
-        channel: 'TP9,AF7,AF8,TP10',
-        values: samples,
-        quality: samples.map(s => Math.abs(s) < 1000 ? 1 : 0)
+    return new Promise<void>((resolve, reject) => {
+      this.firstFrameResolve = () => {
+        this.awaitingFirstFrame = false;
+        this.firstFrameResolve = null;
+        if (this.firstFrameTimer) window.clearTimeout(this.firstFrameTimer);
+        this.firstFrameTimer = null;
+        resolve();
       };
-      
-      // Log occasionally
-      if (Math.random() < 0.005) {
-        console.log('🧠 EEG Sample (µV):', samples.map(s => s.toFixed(1)).join(', '));
-      }
-      
-      // Notify all callbacks
-      this.callbacks.forEach(callback => {
-        try {
-          callback(frame);
-        } catch (err) {
-          console.warn('Callback error:', err);
-        }
-      });
-      
-    } catch (error) {
-      console.warn('Data parsing error:', error);
-    }
+
+      this.firstFrameTimer = window.setTimeout(() => {
+        this.awaitingFirstFrame = false;
+        this.firstFrameResolve = null;
+        this.firstFrameTimer = null;
+        reject(new Error("No EEG frames parsed (first frame timeout)"));
+      }, timeoutMs);
+    });
   }
 
-  private parseMuseSData(dataView: DataView): number[] {
-    const samples: number[] = [];
-    const byteLength = dataView.byteLength;
-    
-    // Try different parsing methods
-    
-    // Method 1: 24-bit samples (Muse S/2)
-    if (byteLength >= 12) {
-      for (let i = 0; i + 2 < byteLength && samples.length < 4; i += 3) {
-        // Read 24-bit little endian
-        const byte1 = dataView.getUint8(i);
-        const byte2 = dataView.getUint8(i + 1);
-        const byte3 = dataView.getUint8(i + 2);
-        
-        let sample = (byte3 << 16) | (byte2 << 8) | byte1;
-        
-        // Convert from signed 24-bit to signed 32-bit
-        if (sample & 0x800000) {
-          sample |= 0xFF000000; // Sign extend
+  async start(): Promise<void> {
+    if (!this.eegChar) throw new Error("Not connected");
+    if (!this.controlChar) throw new Error("No control characteristic");
+    if (!this.server?.connected) throw new Error("GATT not connected");
+
+    console.log("🎵 Starting EEG stream...");
+
+    this.wantAutoReconnect = true;
+    this.packetCount = 0;
+    this.running = false;
+
+    // cleanup old handlers
+    try {
+      await this.eegChar.stopNotifications();
+    } catch {}
+    if (this.eegHandler) {
+      try {
+        this.eegChar.removeEventListener("characteristicvaluechanged", this.eegHandler);
+      } catch {}
+      this.eegHandler = undefined;
+    }
+
+    try {
+      await this.controlChar.stopNotifications();
+    } catch {}
+    if (this.controlHandler) {
+      try {
+        this.controlChar.removeEventListener("characteristicvaluechanged", this.controlHandler);
+      } catch {}
+      this.controlHandler = undefined;
+    }
+
+    // attach EEG handler FIRST
+    this.eegHandler = (event: Event) => {
+      this.packetCount++;
+
+      const ch = event.target as BluetoothRemoteGATTCharacteristic;
+      const dv = ch.value;
+      if (!dv) return;
+
+      const u8 = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+
+      // optional raw debug
+      if (this.packetCount <= 5 || this.packetCount % 200 === 0) {
+        const head = Array.from(u8.slice(0, 18))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join(" ");
+        console.log(`📦 EEG RAW #${this.packetCount}: len=${u8.length} head=${head}`);
+      }
+
+      // parse frames (works even while running=false)
+      const frames = this.parseCombinedEegPacket(u8);
+
+      // If parsing succeeds, that means EEG is truly flowing
+      if (frames.length > 0) {
+        if (!this.running) {
+          this.running = true;
+          if (this.awaitingFirstFrame && this.firstFrameResolve) this.firstFrameResolve();
         }
-        
-        // Convert to microvolts (Muse S scale factor)
-        const microvolts = sample * 0.02235174445530707; // 450 / (2^24)
-        samples.push(microvolts);
+
+        const baseTs = Date.now();
+        const dt = 1000 / this.deviceInfo.samplingRate;
+        const total = frames.length;
+
+        for (let i = 0; i < total; i++) {
+          const values = frames[i];
+          const ts = baseTs - (total - 1 - i) * dt;
+
+          const frame: EEGFrame = {
+            device: this.deviceInfo.type,
+            adapter: "web-bluetooth",
+            ts,
+            channel: "TP9,AF7,AF8,TP10",
+            values,
+            quality: values.map((v) => (Number.isFinite(v) && Math.abs(v) < 2000 ? 1 : 0)),
+          };
+
+          for (const cb of this.callbacks) {
+            try {
+              cb(frame);
+            } catch {}
+          }
+        }
       }
-      
-      if (samples.length === 4) {
-        return samples;
+    };
+
+    this.eegChar.addEventListener("characteristicvaluechanged", this.eegHandler);
+    console.log("👂 Data handler attached");
+
+    // control notify handler (quiet)
+    this.controlHandler = (event: Event) => {
+      // keep silent by default
+      void event;
+    };
+    this.controlChar.addEventListener("characteristicvaluechanged", this.controlHandler);
+
+    // enable notifications with retry
+    console.log("🔔 Enabling notifications...");
+    await this.enableNotificationsWithRetry(this.eegChar, 4, 250);
+    await this.enableNotificationsWithRetry(this.controlChar, 4, 250);
+    console.log("✅ Notifications enabled");
+
+    // Init sequences (Muse S often needs these)
+    const sequences: { name: string; cmds: string[] }[] = [
+      { name: "legacy_p21_d", cmds: ["v6", "p21", "s", "d"] },
+      { name: "legacy_p20_d", cmds: ["v6", "p20", "s", "d"] },
+      { name: "museS_dc001_basic", cmds: ["v6", "s", "dc001", "L1"] },
+      { name: "museS_sleep_p1034_1035", cmds: ["v6", "p1034", "p1035", "s", "dc001", "L1"] },
+    ];
+
+    let lastErr: any = null;
+
+    for (const seq of sequences) {
+      try {
+        console.log(`📡 Initializing Muse (${seq.name})...`);
+
+        const firstFrame = this.waitForFirstFrame(2500);
+
+        for (const cmd of seq.cmds) {
+          const bytes = this.encodeCommand(cmd);
+          await this.writeControlBytes(bytes);
+
+          // show like your “✅ 02 73 0a” logs
+          console.log(
+            `   ✅ ${Array.from(bytes)
+              .map((b) => b.toString(16).padStart(2, "0"))
+              .join(" ")}`
+          );
+
+          await this.sleep(120);
+        }
+
+        await firstFrame;
+
+        console.log("🎉 EEG streaming ready!");
+        return;
+      } catch (e) {
+        lastErr = e;
+        console.warn(`⚠️ Init sequence failed (${seq.name}):`, e);
+        this.running = false;
+        await this.sleep(250);
       }
     }
-    
-    // Method 2: 16-bit samples (older Muse)
-    if (byteLength >= 8) {
-      for (let i = 0; i + 1 < byteLength && samples.length < 4; i += 2) {
-        const sample = dataView.getInt16(i, true); // little endian
-        
-        // Convert to microvolts (Muse OG scale factor)
-        const microvolts = sample * 0.48828125;
-        samples.push(microvolts);
+
+    console.error("❌ Could not start EEG streaming with any init sequence:", lastErr);
+    throw lastErr ?? new Error("Failed to start Muse EEG stream");
+  }
+
+  private async enableNotificationsWithRetry(
+    ch: BluetoothRemoteGATTCharacteristic,
+    tries: number,
+    delayMs: number
+  ) {
+    let lastErr: any = null;
+    for (let i = 0; i < tries; i++) {
+      try {
+        await ch.startNotifications();
+        return;
+      } catch (e) {
+        lastErr = e;
+        await this.sleep(delayMs);
       }
     }
-    
-    return samples;
+    throw lastErr ?? new Error("startNotifications failed");
+  }
+
+  /**
+   * ✅ Parses Muse-S “combined” big packets (like 223/236 bytes).
+   * Strategy:
+   * - scan for 74-byte blocks
+   * - each block: [2 bytes seq][(18 bytes × 4 channels)] => 12 samples/channel
+   * - emit 12 EEG frames per valid block
+   */
+  private parseCombinedEegPacket(buf: Uint8Array): number[][] {
+    const BLOCK = 74;          // 2 + 18*4
+    const CH_BYTES = 18;       // 12 samples @ 12-bit packed
+    const SAMPLES_PER_BLOCK = 12;
+
+    if (buf.length < BLOCK) return [];
+
+    // score an offset by "how plausible" decoded EEG looks
+    const scoreOffset = (off: number): { score: number; frames: number[][] } => {
+      const chunk = buf.slice(off, off + BLOCK);
+      // ignore first 2 bytes (sequence id)
+      const ch0 = chunk.slice(2 + 0 * CH_BYTES, 2 + 1 * CH_BYTES);
+      const ch1 = chunk.slice(2 + 1 * CH_BYTES, 2 + 2 * CH_BYTES);
+      const ch2 = chunk.slice(2 + 2 * CH_BYTES, 2 + 3 * CH_BYTES);
+      const ch3 = chunk.slice(2 + 3 * CH_BYTES, 2 + 4 * CH_BYTES);
+
+      const s0 = this.decodeEEGSamples12Bit(ch0);
+      const s1 = this.decodeEEGSamples12Bit(ch1);
+      const s2 = this.decodeEEGSamples12Bit(ch2);
+      const s3 = this.decodeEEGSamples12Bit(ch3);
+
+      if (s0.length !== 12 || s1.length !== 12 || s2.length !== 12 || s3.length !== 12) {
+        return { score: 0, frames: [] };
+      }
+
+      // build 12 frames
+      const frames: number[][] = [];
+      let score = 0;
+
+      for (let i = 0; i < SAMPLES_PER_BLOCK; i++) {
+        const v = [s0[i], s1[i], s2[i], s3[i]];
+
+        // plausibility: EEG typically within a few thousand µV max; most is far smaller
+        const ok =
+          v.every((x) => Number.isFinite(x)) &&
+          v.every((x) => Math.abs(x) < 5000);
+
+        if (ok) score += 1;
+        frames.push(v);
+      }
+
+      return { score, frames };
+    };
+
+    // 1) find best offset
+    let bestOff = -1;
+    let bestScore = 0;
+
+    for (let off = 0; off <= buf.length - BLOCK; off++) {
+      const { score } = scoreOffset(off);
+      if (score > bestScore) {
+        bestScore = score;
+        bestOff = off;
+      }
+    }
+
+    // require at least 8/12 plausible samples in a block
+    if (bestOff < 0 || bestScore < 8) return [];
+
+    // 2) once best offset found, parse sequential blocks from there
+    const out: number[][] = [];
+    for (let off = bestOff; off <= buf.length - BLOCK; off += BLOCK) {
+      const { score, frames } = scoreOffset(off);
+      if (score < 8) break;
+      out.push(...frames);
+    }
+
+    return out;
+  }
+
+  // from muse-js style decoding: 12-bit packed => µV-ish
+  private decodeUnsigned12BitData(samples: Uint8Array): number[] {
+    const out: number[] = [];
+    for (let i = 0; i < samples.length; i++) {
+      if (i % 3 === 0) {
+        out.push((samples[i] << 4) | (samples[i + 1] >> 4));
+      } else {
+        out.push(((samples[i] & 0x0f) << 8) | samples[i + 1]);
+        i++;
+      }
+    }
+    return out;
+  }
+
+  private decodeEEGSamples12Bit(samples: Uint8Array): number[] {
+    // Muse baseline: centered around 0x800
+    return this.decodeUnsigned12BitData(samples).map((n) => 0.48828125 * (n - 0x800));
   }
 
   async stop(): Promise<void> {
-    console.log('🛑 Stopping EEG streaming...');
+    this.wantAutoReconnect = false;
     this.running = false;
-    
-    try {
-      // Send stop commands
-      if (this.controlChar) {
+
+    if (this.firstFrameTimer) window.clearTimeout(this.firstFrameTimer);
+    this.firstFrameTimer = null;
+    this.awaitingFirstFrame = false;
+    this.firstFrameResolve = null;
+
+    if (this.eegChar) {
+      try {
+        await this.eegChar.stopNotifications();
+      } catch {}
+      if (this.eegHandler) {
         try {
-          const stopCommands = [
-            new Uint8Array([0x03, 0x64, 0x0A]), // Disable EEG
-            new Uint8Array([0x03, 0x6D, 0x0A]), // Disable Battery
-          ];
-          
-          for (const command of stopCommands) {
-            try {
-              await this.controlChar.writeValue(command);
-              console.log(`✅ Stop command sent`);
-            } catch (cmdError) {
-              console.warn('Stop command failed:', cmdError);
-            }
-          }
-        } catch (cmdError) {
-          console.warn('Stop commands failed:', cmdError);
-        }
+          this.eegChar.removeEventListener("characteristicvaluechanged", this.eegHandler);
+        } catch {}
+        this.eegHandler = undefined;
       }
-      
-      // Stop notifications
-      if (this.eegChar) {
-        try {
-          await this.eegChar.stopNotifications();
-          console.log('✅ Notifications stopped');
-        } catch (notifyError) {
-          console.warn('Failed to stop notifications:', notifyError);
-        }
-      }
-    } catch (error) {
-      console.error('Stop error:', error);
     }
-    
-    // Disconnect
+
+    if (this.controlChar) {
+      try {
+        await this.controlChar.stopNotifications();
+      } catch {}
+      if (this.controlHandler) {
+        try {
+          this.controlChar.removeEventListener("characteristicvaluechanged", this.controlHandler);
+        } catch {}
+        this.controlHandler = undefined;
+      }
+    }
+
     if (this.device?.gatt?.connected) {
       try {
         this.device.gatt.disconnect();
-        console.log('🔌 Device disconnected');
-      } catch (disconnectError) {
-        console.warn('Disconnect error:', disconnectError);
+      } catch {}
+    }
+  }
+
+  private async tryReconnect(): Promise<void> {
+    if (this.reconnecting) return;
+    this.reconnecting = true;
+
+    try {
+      for (let attempt = 1; attempt <= this.MAX_RECONNECT; attempt++) {
+        console.log(`🔁 Reconnect attempt ${attempt}/${this.MAX_RECONNECT}...`);
+
+        try {
+          if (!this.device?.gatt) throw new Error("No device.gatt for reconnect");
+          this.server = await this.device.gatt.connect();
+
+          await this.refreshCharacteristics();
+          await this.start();
+
+          console.log("✅ Reconnected + streaming resumed");
+          this.reconnecting = false;
+          return;
+        } catch (e) {
+          console.warn("Reconnect failed:", e);
+          await this.sleep(600 + attempt * 250);
+        }
       }
+    } finally {
+      this.reconnecting = false;
     }
   }
 
   onData(callback: (frame: EEGFrame) => void): () => void {
     this.callbacks.push(callback);
     return () => {
-      this.callbacks = this.callbacks.filter(cb => cb !== callback);
+      this.callbacks = this.callbacks.filter((cb) => cb !== callback);
     };
   }
 

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Muse S BBA3 Test</title>
+</head>
+<body>
+  <button id="btn">Test Muse Connection + Notifications</button>
+  <div id="log"></div>
+
+  <script>
+    document.getElementById("btn").addEventListener("click", testMuse);
+
+    async function testMuse() {
+      log("🔄 Testing Muse S BBA3...");
+
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: "Muse" }],
+          optionalServices: ["0000fe8d-0000-1000-8000-00805f9b34fb"],
+        });
+
+        log(`✅ Found: ${device.name}`);
+
+        device.addEventListener("gattserverdisconnected", () => {
+          log("❌ DEVICE DISCONNECTED!");
+        });
+
+        const server = await device.gatt.connect();
+        log("✅ GATT connected");
+
+        const service = await server.getPrimaryService(
+          "0000fe8d-0000-1000-8000-00805f9b34fb"
+        );
+        log("✅ Service found");
+
+        const chars = await service.getCharacteristics();
+        log(`📋 Found ${chars.length} characteristics`);
+        chars.forEach((c) => log(`   ${c.uuid}`));
+
+        // ✅ Notifications test
+        const eegChar = await service.getCharacteristic(
+          "273e0013-4c4d-454d-96be-f03bac821358"
+        );
+
+        eegChar.addEventListener("characteristicvaluechanged", (e) => {
+          const v = e.target.value;
+          log("📦 EEG packet bytes: " + v.byteLength);
+        });
+
+        log("🔔 Enabling notifications on 273e0013...");
+        await eegChar.startNotifications();
+        log("✅ Notifications enabled on 273e0013");
+
+        log("⏱️ Listening for 10 seconds...");
+        setTimeout(() => {
+          log("✅ Done (10s). You can disconnect by closing tab or refreshing.");
+        }, 10000);
+
+      } catch (error) {
+        log("❌ Error: " + (error?.message || error));
+      }
+    }
+
+    function log(msg) {
+      document.getElementById("log").innerHTML += `<div>${msg}</div>`;
+      console.log(msg);
+    }
+  </script>
+</body>
+</html>

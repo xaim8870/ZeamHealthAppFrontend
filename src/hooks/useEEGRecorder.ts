@@ -21,6 +21,7 @@ export type EEGRecord = {
   channels: string[];
   samples: number[][]; // shape depends on device
   samplingRate?: number;
+  quality?: number[];
   raw?: any;
 };
 
@@ -108,24 +109,43 @@ export function useEEGRecorder() {
 
         unsubRef.current?.();
 
-        if (device === "muse") {
-          if (!museRecorder) throw new Error("Muse recorder missing");
+        // In useEEGRecorder.ts, inside the start() method, Muse case:
+if (device === "muse") {
+  if (!museRecorder) throw new Error("Muse recorder missing");
+  
+  console.log('🎯 useEEGRecorder: Setting up Muse subscription');
+  console.log('   museRecorder instance:', museRecorder);
+  
+  unsubRef.current = museRecorder.onData((frame: EEGFrame) => {
+    // inside muse subscription
+    const n = recordsRef.current.length;
+    if (n % 256 === 0) console.log(`📊 useEEGRecorder frames: ${n}`);
 
-          await museRecorder.start();
-          unsubRef.current = museRecorder.onData((frame: EEGFrame) => {
-            rawFramesRef.current.push(frame);
+    rawFramesRef.current.push(frame);
 
-            recordsRef.current.push({
-              device: "muse",
-              timestamp: Date.now(),
-              channels: [String((frame as any).channel)],
-              samples: [(frame as any).values ?? []],
-            });
+    const record: EEGRecord = {
+      device: "muse",
+      timestamp: frame.ts,
+      channels: frame.channel.split(','),
+      samples: [frame.values],
+      quality: frame.quality,
+      samplingRate: 256,
+      raw: frame
+    };
 
-            onFrame?.(frame);
-          });
-          return;
-        }
+    recordsRef.current.push(record);
+    
+    // Log every 50th frame
+    if (recordsRef.current.length % 50 === 0) {
+      console.log(`📊 useEEGRecorder records: ${recordsRef.current.length} frames`);
+    }
+    
+    onFrame?.(frame);
+  });
+  
+  console.log('✅ useEEGRecorder subscription setup complete');
+  return;
+}
 
         if (device === "neurosity") {
           if (!neurosity) throw new Error("Neurosity missing");
@@ -133,18 +153,19 @@ export function useEEGRecorder() {
           const sub = neurosity.brainwaves("raw").subscribe((pkt: any) => {
             rawFramesRef.current.push(pkt);
 
-            recordsRef.current.push({
+            const record: EEGRecord = {
               device: "neurosity",
               timestamp: resolveNeurosityTimestamp(
                 pkt,
                 startedAtEpochRef.current
               ),
               channels: pkt?.info?.channelNames ?? [],
-              samples: pkt?.data ?? [],
+              samples: pkt?.data ?? [], // Neurosity sends multiple samples per packet
               samplingRate: pkt?.info?.samplingRate,
               raw: pkt,
-            });
+            };
 
+            recordsRef.current.push(record);
             onFrame?.(pkt);
           });
 
@@ -215,7 +236,7 @@ export function useEEGRecorder() {
 
         return {
           meta: {
-            device: allRecords[0]?.device ?? null,
+            device: allRecords[0]?.device ?? null, // This will now be "muse"!
             startedAt: startedAtISORef.current,
             endedAt: new Date().toISOString(),
             appTimestampBasis: "epoch_ms_normalized",

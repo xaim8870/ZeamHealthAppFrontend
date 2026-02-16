@@ -71,36 +71,128 @@ const EEGAssessmentFlow: React.FC<{
   const startedRef = useRef(false);
 
   const startRecordingOnce = async () => {
-    if (startedRef.current) return;
-    startedRef.current = true;
+  if (startedRef.current) return;
+  startedRef.current = true;
 
-    if (!selectedDevice) throw new Error("No device selected");
-    if (selectedDevice === "neurosity" && !neurosity)
-      throw new Error("Neurosity not connected");
-    if (selectedDevice === "muse" && !museRecorder)
-      throw new Error("Muse not connected");
+  if (!selectedDevice) throw new Error("No device selected");
+  if (selectedDevice === "neurosity" && !neurosity)
+    throw new Error("Neurosity not connected");
+  if (selectedDevice === "muse" && !museRecorder)
+    throw new Error("Muse not connected");
+     // useEffect(() => {
+     //   const t = setInterval(() => {
+     //     // if no new frames in last 2s, set idle
+     //   }, 2000);
+     //   return () => clearInterval(t);
+     //  }, []);
+  // inside startRecordingOnce(), before recorder.start(...)
+if (selectedDevice === "muse" && museRecorder) {
+  // ✅ if for any reason stream isn't running, start it here
+  if (!museRecorder.isRunning()) {
+    console.log("⚠️ Muse was not running inside flow — starting stream now...");
+    await museRecorder.start();
+  }
+}
 
-    await recorder.start({
-      device: selectedDevice === "neurosity" ? "neurosity" : "muse",
-      neurosity,
-      museRecorder,
-      onFrame: () => {
-        // optional debug
-        // console.log("EEG frame");
-      },
-    });
+  // ✅ STEP 1: Start useEEGRecorder subscription FIRST
+  console.log('🎥 STEP 1: Starting useEEGRecorder subscription');
+  await recorder.start({
+  device: selectedDevice,
+  neurosity: selectedDevice === "neurosity" ? neurosity : null,
+  museRecorder: selectedDevice === "muse" ? museRecorder : null,
+  onFrame: () => {
+    frameRef.current += 1;
+    //setFrameCount(frameRef.current);
+    //setEegStatus("active");
+  },
+});
 
-    recorder.markEvent("session_started", { device: selectedDevice });
-  };
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      frameRef.current += 32;
-      setFrameCount(frameRef.current);
+  // ✅ STEP 2: For Muse - REMOVE clearRecordings! Just start recording mode
+  if (selectedDevice === "muse" && museRecorder) {
+    console.log('🎥 STEP 2: Starting Muse recording mode (KEEPING existing frames)');
+    museRecorder.startRecording(); // This should NOT clear the buffer
+  }
+
+  // ✅ STEP 3: Mark session started
+  console.log('🎥 STEP 3: Marking session started');
+  recorder.markEvent("session_started", { device: selectedDevice });
+  
+  // ✅ STEP 4: Log what we have
+   //setTimeout(() => {
+   // const frames = museRecorder?.getRecordings().length || 0;
+   // console.log(`🔍 After start: MuseRecorder has ${frames} frames`);
+ // }, 1000);
+};
+  // Add this useEffect in EEGAssessmentFlow to monitor the recorder
+  // ! --------------- -------------- ! //
+// Add this near the top of your component
+// UI Ticker useEffect()
+useEffect(() => {
+  let lastCount = 0;
+  let lastChangeAt = Date.now();
+
+  const id = window.setInterval(() => {
+    const nowCount = frameRef.current;
+
+    if (nowCount !== lastCount) {
+      lastCount = nowCount;
+      lastChangeAt = Date.now();
       setEegStatus("active");
-    }, 500);
-    return () => clearInterval(id);
-  }, []);
+    } else if (Date.now() - lastChangeAt > 2000) {
+      setEegStatus("idle");
+    }
+
+    setFrameCount(nowCount); // ✅ only 4x/sec
+  }, 250);
+
+  return () => window.clearInterval(id);
+}, []);
+
+
+// useEffect(() => {
+//  if (!museRecorder) return;
+  
+  // Check every 2 seconds if we're getting new frames
+//  const interval = setInterval(() => {
+//    const frames = museRecorder.getRecordings();
+//    console.log(`⏰ TIMED CHECK: MuseRecorder has ${frames.length} frames`);
+    
+//    if (frames.length > 0) {
+//      const latest = frames[frames.length - 1];
+//      console.log(`   Latest frame: ${latest.values.map(v => v.toFixed(1)).join(', ')} µV`);
+ //   }
+ // }, 2000);
+  
+ // return () => clearInterval(interval);
+//}, [museRecorder]);
+//useEffect(() => {
+//  if (!recorder) return;
+  
+  // Check every 5 seconds if we're getting data
+//  const interval = setInterval(() => {
+//    const data = recorder.getData({ trimmed: false });
+//    console.log('🔍 EEGAssessmentFlow recorder stats:', {
+ //     totalRecords: data.totalRecords,
+ //     totalRawFrames: data.totalRawFrames,
+ //     device: data.meta.device
+  //  });
+ // }, 5000);
+  
+ // return () => clearInterval(interval);
+//}, [recorder]);
+  // Frame counter + active status
+  // Add this near the top of EEGAssessmentFlow
+useEffect(() => {
+  if (museRecorder) {
+    console.log('🎮 MuseRecorder is available');
+    
+    // Check if we're already getting frames
+    const frames = museRecorder.getRecordings();
+    console.log(`📊 Initial buffer has ${frames.length} frames`);
+  }
+}, [museRecorder]);
+ 
 
   /* ================= OVERALL PROGRESS ================= */
   const totalMs = useMemo(() => {
@@ -750,18 +842,26 @@ useEffect(() => {
   };
 
   const download = () => {
-    const blob = new Blob([JSON.stringify(recordedEEG, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `EEG_${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const device = recordedEEG?.meta?.device ?? "eeg";
+  const startedAt = recordedEEG?.meta?.startedAt
+    ? new Date(recordedEEG.meta.startedAt).toISOString().replace(/[:.]/g, "-")
+    : `${Date.now()}`;
 
-    onComplete(recordedEEG);
-  };
+  const blob = new Blob([JSON.stringify(recordedEEG, null, 2)], {
+    type: "application/json",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${device}_EEG_${startedAt}.json`;
+
+  a.click();
+  URL.revokeObjectURL(url);
+
+  onComplete(recordedEEG);
+};
+
 
   /* ================= UI ================= */
   return (

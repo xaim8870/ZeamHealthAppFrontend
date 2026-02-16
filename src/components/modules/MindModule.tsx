@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
+import {MuseTestButton} from "@/utils/testMuseStreaming";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -193,6 +193,10 @@ const MindModule: React.FC<MindModuleProps> = ({ onBack }) => {
                     >
                       Custom Assessment
                     </Button>
+                    {/* Test Button */}
+                           
+                    <MuseTestButton />
+                           
                   </div>
                 </CardContent>
               </Card>

@@ -58,7 +58,7 @@ const AppRoutes = () => {
   const navigate = useNavigate();
 
   return (
-    <DeviceProvider>
+    
       <Routes>
         {/* ========== AUTH ========== */}
         <Route
@@ -184,7 +184,7 @@ const AppRoutes = () => {
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </DeviceProvider>
+    
   );
 };
 
@@ -205,7 +205,9 @@ const App = () => {
         <GoogleOAuthProvider clientId="YOUR_GOOGLE_CLIENT_ID">
           <BrowserRouter>
             <AuthProvider>
+              <DeviceProvider>
               {showSplash ? <SplashScreen /> : <AppRoutes />}
+              </DeviceProvider>
             </AuthProvider>
           </BrowserRouter>
         </GoogleOAuthProvider>

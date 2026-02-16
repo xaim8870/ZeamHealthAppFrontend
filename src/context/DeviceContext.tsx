@@ -1,10 +1,8 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useMemo, useRef, useState } from "react";
 import type { Neurosity } from "@neurosity/sdk";
 import { logoutNeurosity } from "../utils/NeurosityClient";
 import { MuseRecorder } from "@/services/eeg/MuseRecorder";
 import { useEEGRecorder } from "@/hooks/useEEGRecorder";
-
-/* ===================== TYPES ===================== */
 
 type DeviceType = "neurosity" | "muse" | null;
 
@@ -28,19 +26,19 @@ interface DeviceState {
 
 const DeviceContext = createContext<DeviceState | undefined>(undefined);
 
-/* ===================== PROVIDER ===================== */
-
-export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  /* 🔒 EEG Recorder — CREATED ONCE, LEGALLY */
+export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const recorder = useEEGRecorder();
 
   const [isConnected, setIsConnected] = useState(false);
   const [selectedDevice, setSelectedDevice] = useState<DeviceType>(null);
 
-  const [neurosity, setNeurosity] = useState<Neurosity | null>(null);
-  const [museRecorder, setMuseRecorder] = useState<MuseRecorder | null>(null);
+  // ✅ keep devices in refs (stable across re-renders)
+  const neurosityRef = useRef<Neurosity | null>(null);
+  const museRecorderRef = useRef<MuseRecorder | null>(null);
+
+  // ✅ expose current values for UI
+  const neurosity = neurosityRef.current;
+  const museRecorder = museRecorderRef.current;
 
   const setConnection = (
     status: boolean,
@@ -51,46 +49,54 @@ export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({
     setSelectedDevice(device);
 
     if (device === "neurosity") {
-      setNeurosity(payload as Neurosity);
-      setMuseRecorder(null);
+      neurosityRef.current = payload as Neurosity;
+      museRecorderRef.current = null;
     }
 
     if (device === "muse") {
-      setMuseRecorder(payload as MuseRecorder);
-      setNeurosity(null);
+      museRecorderRef.current = payload as MuseRecorder;
+      neurosityRef.current = null;
+    }
+
+    if (device === null) {
+      neurosityRef.current = null;
+      museRecorderRef.current = null;
     }
   };
 
   const disconnectDevice = () => {
-    museRecorder?.stop?.();
-    logoutNeurosity(neurosity);
+    // ✅ disconnect muse safely
+    museRecorderRef.current?.stop?.();
+    museRecorderRef.current = null;
 
-    recorder.stop(); // ✅ stop EEG cleanly
+    // ✅ disconnect neurosity safely
+    if (neurosityRef.current) {
+      logoutNeurosity(neurosityRef.current);
+      neurosityRef.current = null;
+    }
+
+    recorder.stop();
 
     setIsConnected(false);
     setSelectedDevice(null);
-    setNeurosity(null);
-    setMuseRecorder(null);
   };
 
-  return (
-    <DeviceContext.Provider
-      value={{
-        isConnected,
-        selectedDevice,
-        neurosity,
-        museRecorder,
-        recorder,
-        setConnection,
-        disconnectDevice,
-      }}
-    >
-      {children}
-    </DeviceContext.Provider>
+  // ✅ memoise context value to avoid needless renders
+  const value = useMemo(
+    () => ({
+      isConnected,
+      selectedDevice,
+      neurosity,
+      museRecorder,
+      recorder,
+      setConnection,
+      disconnectDevice,
+    }),
+    [isConnected, selectedDevice, neurosity, museRecorder, recorder]
   );
-};
 
-/* ===================== HOOK ===================== */
+  return <DeviceContext.Provider value={value}>{children}</DeviceContext.Provider>;
+};
 
 export const useDevice = () => {
   const ctx = useContext(DeviceContext);

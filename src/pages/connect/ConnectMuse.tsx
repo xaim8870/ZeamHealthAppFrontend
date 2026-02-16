@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { UniversalMuseAdapter } from "@/services/eeg/adapters/UniversalMuseAdapter";
 import { MuseRecorder } from "@/services/eeg/MuseRecorder";
 import { useDevice } from "@/context/DeviceContext";
+import { MuseTestButton } from '@/utils/testMuseStreaming';
 
 const ConnectMuse: React.FC = () => {
   const navigate = useNavigate();
@@ -34,26 +35,35 @@ const ConnectMuse: React.FC = () => {
     await adapter.connect();
     addDebugLog("Adapter connected successfully");
 
-    // ✅ Start the adapter BEFORE creating recorder
-    addDebugLog("Starting EEG stream...");
-    
-
+    // Create recorder
     const recorder = new MuseRecorder(adapter);
     addDebugLog("Recorder created");
 
+    // CRITICAL: Start the EEG stream
+    addDebugLog("Starting Muse EEG stream...");
+    await recorder.start();
+    addDebugLog("✅ Muse EEG stream started");
     
+    // VERIFY: Check if adapter is actually running
+    const isRunning = adapter.isRunning();
+    addDebugLog(`Adapter running status: ${isRunning}`);
+    
+    if (!isRunning) {
+      throw new Error("Adapter failed to start streaming");
+    }
 
+    // Store in context
     setConnection(true, "muse", recorder);
     addDebugLog("Global state updated");
 
     setStatus("🎉 Connected! Starting EEG sessions...");
     addDebugLog("Redirecting to mind module");
 
-    // ✅ Add small delay to ensure everything is ready
     setTimeout(() => {
       navigate("/mind", { replace: true });
     }, 500);
-   } catch (error: any) {
+    
+  } catch (error: any) {
     console.error("Connection error:", error);
     addDebugLog(`ERROR: ${error.message}`);
     setStatus("❌ Connection failed");
@@ -139,6 +149,11 @@ const ConnectMuse: React.FC = () => {
           )}
         </button>
 
+        {/* Test Button */}
+        <div style={{ textAlign: "center" }}>
+          <MuseTestButton />
+        </div>
+
         {/* Debug Logs */}
         {debugLogs.length > 0 && (
           <div style={{
@@ -211,7 +226,6 @@ const ConnectMuse: React.FC = () => {
         </button>
       </div>
 
-      {/* CSS for spinner */}
       <style>{`
         .spinner {
           display: inline-block;
