@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 import ProgressWheel from "@/components/ui/ProgressWheel";
 import { playBeep } from "../../utils/playBeep";
+import { startMusic, stopMusic, setMusicVolume } from "@/utils/bgMusic";
 
 interface Props {
   stage: "closed" | "open";
@@ -13,10 +14,8 @@ interface Props {
 
 /* 🎵 Calm EEG background music */
 const MUSIC_TRACKS = [
-  "/assets/music/AXIS1173_17_Calm_Full.wav",
-  "/assets/music/AXIS1173_18_Calm_Alt.wav",
-  "/assets/music/AXIS1173_19_Calm_60.wav", // ✅ fixed
-  "/assets/music/AXIS1173_19_Calm_30.wav", // ✅ fixed
+  "/assets/music/Calm.wav",
+  "/assets/music/Depth.wav", // ✅ fixed
 ];
 
 const MUSIC_VOLUME = 0.12;
@@ -39,6 +38,7 @@ const EyesClosedOpen: React.FC<Props> = ({
       : "Please keep your eyes open and find a point to focus on.";
 
   /* ================= MUSIC CONTROL ================= */
+  /*
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -83,8 +83,23 @@ const EyesClosedOpen: React.FC<Props> = ({
   };
 }, [phase]);
 
+*/
 
-  /* ================= BEEP WHEN EYES-CLOSED COMPLETES ONLY ================= */
+useEffect(() => {
+  setMusicVolume(0.12);
+
+  if (phase === "running") {
+    startMusic({ restart: true });
+  } else {
+    stopMusic();
+  }
+}, [phase]);
+
+useEffect(() => {
+  return () => {
+    stopMusic();
+  };
+}, []);  /* ================= BEEP WHEN EYES-CLOSED COMPLETES ONLY ================= */
   const prevTimeLeftRef = useRef<number>(timeLeft);
   const beepedForClosedRunRef = useRef(false);
 

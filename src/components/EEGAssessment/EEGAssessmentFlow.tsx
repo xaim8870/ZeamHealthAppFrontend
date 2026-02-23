@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { unlockAudio, unlockMusic, playBeep } from "@/utils/playBeep";
-
+import { unlockAudio,  playBeep } from "@/utils/playBeep";
+import { unlockMusic } from "@/utils/bgMusic";
 
 import EEGQuestionnaire from "./EEGQuestionnaire";
 import GetReady from "./GetReady";

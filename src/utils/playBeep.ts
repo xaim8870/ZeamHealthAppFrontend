@@ -1,55 +1,62 @@
 // src/utils/playBeep.ts
 let beepAudio: HTMLAudioElement | null = null;
+let stopTimer: number | null = null;
 
-/** Create/reuse the beep element */
+const BEEP_VOLUME = 0.2;       // increase/decrease (0.0 to 1.0)
+const BEEP_DURATION_MS = 1000;   // 0.1s
+const BEEP_START_AT = 0;     // IMPORTANT: skip initial silence (tune 0.00–0.08)
+
 const getBeep = () => {
   if (!beepAudio) {
     beepAudio = new Audio("/assets/beep.mp3");
     beepAudio.preload = "auto";
-    beepAudio.volume = 0.5; // adjust
+    beepAudio.volume = BEEP_VOLUME;
   }
   return beepAudio;
 };
 
-/** Call once on a user interaction (Start button etc.) */
 export const unlockAudio = async () => {
   const a = getBeep();
   try {
-    // try to "prime" playback to satisfy autoplay restrictions
     a.muted = true;
     await a.play();
     a.pause();
     a.currentTime = 0;
     a.muted = false;
   } catch {
-    // ignore (some browsers still block until another gesture)
+    // ignore
   }
 };
 
 export const playBeep = async () => {
   const a = getBeep();
-  try {
-    a.currentTime = 0; // replay instantly
-    await a.play();
-  } catch {
-    // blocked by autoplay policy (means unlockAudio wasn't triggered by a gesture)
+
+  // cancel previous stop
+  if (stopTimer) {
+    window.clearTimeout(stopTimer);
+    stopTimer = null;
   }
-};
-// this function unlocks music playback on user gesture
-let musicUnlockEl: HTMLAudioElement | null = null;
 
-export const unlockMusic = async () => {
+  // stop any currently playing beep
+  a.pause();
+
+  // apply volume every time
+  a.volume = BEEP_VOLUME;
+
   try {
-    // pick ANY one of your music tracks (doesn't matter which for unlocking)
-    musicUnlockEl ??= new Audio("/assets/music/AXIS1173_17_Calm_Full.wav");
-    musicUnlockEl.loop = true;
-    musicUnlockEl.volume = 0;     // silent
-    musicUnlockEl.preload = "auto";
+    // skip mp3 leading silence so 0.1s actually contains sound
+    a.currentTime = BEEP_START_AT;
 
-    await musicUnlockEl.play();   // ✅ this is the key (must happen on user gesture)
-    musicUnlockEl.pause();
-    musicUnlockEl.currentTime = 0;
+    await a.play();
+
+    // hard stop at 0.1s
+    stopTimer = window.setTimeout(() => {
+      a.pause();
+      a.currentTime = 0;
+      stopTimer = null;
+    }, BEEP_DURATION_MS);
   } catch (e) {
-    console.warn("unlockMusic failed:", e);
+    // usually autoplay restriction
+    // console.warn("beep blocked:", e);
   }
 };
