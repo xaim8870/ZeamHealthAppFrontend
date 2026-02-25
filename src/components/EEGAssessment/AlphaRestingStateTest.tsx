@@ -72,8 +72,7 @@ const AlphaRestingStateTest: React.FC<Props> = ({ phase }) => {
             </h3>
 
             <p className="text-sm text-gray-400 max-w-xs mx-auto">
-              Solve the problems mentally.
-              Stay as still as possible.
+              You will be shown math problems. Solve as many as you can in your head until you hear the tone. After the tone, take slow deep breaths.
             </p>
           </motion.div>
         )}

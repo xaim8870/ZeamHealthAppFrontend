@@ -8,13 +8,14 @@ interface Props {
   onComplete: () => void;
 }
 
-type Phase = "instruction" | "subtract" | "breathing";
+type Phase = "instruction" | "subtract" | "breathInstruction" | "breathing";
 
 /* Subtraction difficulty pool */
 const SUBTRACTION_VALUES = [7, 9, 11, 13];
 
 const INSTRUCTION_DURATION = 5; // seconds
 const SUBTRACTION_DURATION = 30; // seconds
+const BREATH_INSTRUCTION_DURATION = 5; // seconds ✅ added
 const BREATHING_DURATION = 15; // seconds
 
 /* Breathing rhythm */
@@ -53,7 +54,12 @@ const MentalSubtractionScreen: React.FC<Props> = ({ onComplete }) => {
   /* ================= HARD FAILSAFE ================= */
   useEffect(() => {
     const hardStopMs =
-      (INSTRUCTION_DURATION + SUBTRACTION_DURATION + BREATHING_DURATION + 8) * 1000;
+      (INSTRUCTION_DURATION +
+        SUBTRACTION_DURATION +
+        BREATH_INSTRUCTION_DURATION + // ✅ added
+        BREATHING_DURATION +
+        8) *
+      1000;
 
     const t = window.setTimeout(() => safeComplete(), hardStopMs);
     return () => window.clearTimeout(t);
@@ -70,17 +76,19 @@ const MentalSubtractionScreen: React.FC<Props> = ({ onComplete }) => {
         ? INSTRUCTION_DURATION
         : phase === "subtract"
         ? SUBTRACTION_DURATION
+        : phase === "breathInstruction"
+        ? BREATH_INSTRUCTION_DURATION // ✅ added
         : BREATHING_DURATION;
 
     // reset start time each phase
     phaseStartRef.current = Date.now();
-   // setTimeLeft(durationSec);
+    // setTimeLeft(durationSec);
 
     const id = window.setInterval(() => {
       const elapsed = Math.floor((Date.now() - (phaseStartRef.current as number)) / 1000);
       const remaining = Math.max(0, durationSec - elapsed);
 
-     // setTimeLeft(remaining);
+      // setTimeLeft(remaining);
 
       if (remaining <= 0) {
         window.clearInterval(id);
@@ -89,6 +97,8 @@ const MentalSubtractionScreen: React.FC<Props> = ({ onComplete }) => {
         if (phase === "instruction") {
           setPhase("subtract");
         } else if (phase === "subtract") {
+          setPhase("breathInstruction"); // ✅ changed
+        } else if (phase === "breathInstruction") {
           setBreathLabel("Inhale");
           setPhase("breathing");
         } else {
@@ -150,10 +160,10 @@ const MentalSubtractionScreen: React.FC<Props> = ({ onComplete }) => {
             <Calculator className="w-8 h-8 mx-auto text-red-400" />
             <h3 className="text-xl font-semibold">Mental Subtraction Task</h3>
             <p className="text-sm text-gray-400 max-w-xs mx-auto">
-              Subtract {subtractBy} repeatedly in your mind. Remain still and focused.
+              You will be shown a starting number and a smaller number. Repeatedly subtract the smaller number from your running total in your head until you hear the tone. After the tone, take slow deep breaths.
             </p>
 
-           {/* <p className="text-xs text-gray-500">Starting in {timeLeft}s</p> */}
+            {/* <p className="text-xs text-gray-500">Starting in {timeLeft}s</p> */}
 
             <div className="flex justify-center gap-2 mt-2">
               {[0, 1, 2].map((k) => (
@@ -183,9 +193,7 @@ const MentalSubtractionScreen: React.FC<Props> = ({ onComplete }) => {
             exit={{ opacity: 0, y: -6 }}
             className="space-y-6"
           >
-            <p className="text-sm text-gray-300">
-              Subtract {subtractBy} repeatedly in your mind
-            </p>
+            <p className="text-sm text-gray-300">Subtract {subtractBy} repeatedly in your mind</p>
 
             <div className="flex justify-center">
               <div className="w-28 h-28 rounded-2xl flex items-center justify-center border border-red-400/40">
@@ -193,7 +201,40 @@ const MentalSubtractionScreen: React.FC<Props> = ({ onComplete }) => {
               </div>
             </div>
 
-          {/*   <p className="text-xs text-gray-500">Time left: {timeLeft}s</p> */}
+            {/*   <p className="text-xs text-gray-500">Time left: {timeLeft}s</p> */}
+          </motion.div>
+        )}
+
+        {/* ✅ BREATHING INSTRUCTIONS (between subtract and breathing) */}
+        {phase === "breathInstruction" && (
+          <motion.div
+            key="breathInstruction"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="space-y-4"
+          >
+            <h3 className="text-xl font-semibold text-cyan-200">Breathing</h3>
+            <p className="text-sm text-gray-400 max-w-xs mx-auto">
+              Now take slow, deep breaths. Breathe on your own or follow the image on the screen until you hear the tone.
+            </p>
+
+            <div className="flex justify-center gap-2 mt-2">
+              {[0, 1, 2].map((k) => (
+                <motion.span
+                  key={k}
+                  initial={{ opacity: 0.25 }}
+                  animate={{ opacity: 1 }}
+                  transition={{
+                    duration: 0.8,
+                    repeat: Infinity,
+                    repeatType: "reverse",
+                    delay: k * 0.2,
+                  }}
+                  className="w-2 h-2 rounded-full bg-cyan-300"
+                />
+              ))}
+            </div>
           </motion.div>
         )}
 
@@ -207,9 +248,12 @@ const MentalSubtractionScreen: React.FC<Props> = ({ onComplete }) => {
           >
             <motion.p className="text-xl text-cyan-300">{breathLabel}</motion.p>
 
-            <BreathingOrb inhale={breathLabel === "Inhale"} duration={breathLabel === "Inhale" ? 4 : 6} />
+            <BreathingOrb
+              inhale={breathLabel === "Inhale"}
+              duration={breathLabel === "Inhale" ? 4 : 6}
+            />
 
-        {/**    <p className="text-xs text-gray-500">Time left: {timeLeft}s</p>  */}
+            {/**    <p className="text-xs text-gray-500">Time left: {timeLeft}s</p>  */}
           </motion.div>
         )}
       </AnimatePresence>

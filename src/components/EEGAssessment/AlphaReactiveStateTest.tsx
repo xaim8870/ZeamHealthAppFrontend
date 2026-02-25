@@ -21,9 +21,9 @@ const MUSIC_TRACKS = [
 const MUSIC_VOLUME = 0.12;
 
 const instructionText: Record<Props["phase"], string> = {
-  eyesClosed: "Please keep your eyes closed",
+  eyesClosed: "You will alternate between eyes closed and eyes open. Each time you hear a tone, switch. Begin with your eyes closed.",
   eyesOpen: "Please keep your eyes open and focus on a fixed point",
-  imageBreathing: "Follow the breathing rhythm",
+  imageBreathing: "Now take slow, deep breaths. Breathe on your own or follow the image on the screen until you hear the tone.",
 };
 
 const AlphaReactiveStateTest: React.FC<Props> = ({

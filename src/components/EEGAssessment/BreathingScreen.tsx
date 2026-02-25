@@ -38,7 +38,7 @@ const BreathingScreen: React.FC<Props> = ({
               Guided Breathing
             </h3>
             <p className="text-sm text-gray-400 max-w-xs mx-auto">
-              Breathe slowly through your nose and remain still.
+              Now take slow, deep breaths. Breathe on your own or follow the image on the screen until you hear the tone.
             </p>
           </motion.div>
         )}

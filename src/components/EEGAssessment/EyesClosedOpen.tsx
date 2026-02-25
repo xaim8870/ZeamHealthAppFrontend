@@ -34,56 +34,11 @@ const EyesClosedOpen: React.FC<Props> = ({
 
   const instructionText =
     stage === "closed"
-      ? "Please keep your eyes closed until the music stops."
-      : "Please keep your eyes open and find a point to focus on.";
+      ? "Close your eyes, listen to the music, and remain as still and calm as you are able."
+      : "Open your eyes and rest your gaze on a comfortable spot in the room. Stay relaxed and still.";
 
   /* ================= MUSIC CONTROL ================= */
-  /*
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-  if (!audioRef.current) {
-    const track =
-      MUSIC_TRACKS[Math.floor(Math.random() * MUSIC_TRACKS.length)];
-
-    const audio = new Audio(track);
-
-    // ✅ ADD LISTENERS HERE (right after creation)
-    audio.addEventListener("canplaythrough", () =>
-      console.log("🎵 music canplaythrough")
-    );
-    audio.addEventListener("play", () => console.log("▶️ music play event"));
-    audio.addEventListener("pause", () => console.log("⏸️ music pause event"));
-    audio.addEventListener("error", (e) => console.warn("❌ music error", e));
-
-    audio.loop = true;
-    audio.volume = MUSIC_VOLUME;
-    audio.preload = "auto";
-    audioRef.current = audio;
-  }
-
-  if (phase === "running") {
-    audioRef.current.play().catch((err) => {
-      console.warn("🔇 Background music play() blocked:", err);
-      console.log("phase:", phase, "stage:", stage);
-      console.log(
-        "readyState:",
-        audioRef.current?.readyState,
-        "paused:",
-        audioRef.current?.paused
-      );
-    });
-  } else {
-    audioRef.current.pause();
-    audioRef.current.currentTime = 0;
-  }
-
-  return () => {
-    audioRef.current?.pause();
-  };
-}, [phase]);
-
-*/
+  
 
 useEffect(() => {
   setMusicVolume(0.12);
