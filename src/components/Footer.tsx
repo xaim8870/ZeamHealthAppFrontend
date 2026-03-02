@@ -1,5 +1,14 @@
 import { motion } from "framer-motion";
-import { Home, Heart, Brain, Activity, Moon, User, MessageCircle } from "lucide-react";
+import {
+  Home,
+  Heart,
+  Brain,
+  Activity,
+  Moon,
+  User,
+  MessageCircle,
+  Wrench, // ✅ add
+} from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import type { ModuleType } from "@/pages/Index";
 
@@ -13,8 +22,13 @@ const Footer = () => {
     { label: "Mind", module: "mind" as ModuleType, icon: Brain, color: "text-green-500", path: "/mind" },
     { label: "Activity", module: "activity" as ModuleType, icon: Activity, color: "text-orange-500", path: "/activity" },
     { label: "Sleep", module: "sleep" as ModuleType, icon: Moon, color: "text-purple-500", path: "/sleep" },
-    { label: "Chat", module: "chat" as ModuleType, icon: MessageCircle, color: "text-sky-500", path: "/chat" }, // 🟢 New Chat button
-    { label: "Profile", module: "profile" as ModuleType, icon: User, color: "text-pink-500", path: "/profile" },
+
+    // ✅ NEW: EEG Debug (Neurosity priority)
+    { label: "EEG Dev", module: "eegdev" as ModuleType, icon: Wrench, color: "text-amber-600", path: "/dev/eeg" },
+
+    // ❌ Commented out for now
+    // { label: "Chat", module: "chat" as ModuleType, icon: MessageCircle, color: "text-sky-500", path: "/chat" },
+    // { label: "Profile", module: "profile" as ModuleType, icon: User, color: "text-pink-500", path: "/profile" },
   ];
 
   const buttonVariants = {
@@ -36,6 +50,7 @@ const Footer = () => {
         <nav className="flex justify-between items-center">
           {navItems.map(({ label, module, icon: Icon, color, path }) => {
             const isActive = location.pathname === path;
+
             return (
               <motion.button
                 key={module}
@@ -51,14 +66,10 @@ const Footer = () => {
                 aria-label={label}
               >
                 <Icon
-                  className={`w-5 h-5 ${color} ${
-                    isActive ? "scale-110 drop-shadow-sm" : ""
-                  }`}
+                  className={`w-5 h-5 ${color} ${isActive ? "scale-110 drop-shadow-sm" : ""}`}
                 />
                 <span
-                  className={`text-[11px] font-medium ${color} ${
-                    isActive ? "opacity-100" : "opacity-90"
-                  }`}
+                  className={`text-[11px] font-medium ${color} ${isActive ? "opacity-100" : "opacity-90"}`}
                 >
                   {label}
                 </span>

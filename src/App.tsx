@@ -42,6 +42,7 @@ import ConnectNeurosity from "./pages/ConnectNeurosity";
 import ConnectMuse from "./pages/connect/ConnectMuse";
 import EEGAssessmentFlow from "./components/EEGAssessment/EEGAssessmentFlow";
 
+import EEGDebug from "@/pages/dev/EEGDebug";
 import "./styles/global.css";
 
 const queryClient = new QueryClient();
@@ -110,7 +111,7 @@ const AppRoutes = () => {
               </ProtectedRoute>
             }
           />
-
+          <Route path="/dev/eeg" element={<EEGDebug />} />
           <Route
             path="/sleep"
             element={
