@@ -3,6 +3,14 @@ import { WindowData } from "./windowing";
 import { welchPSD } from "./welch";
 import { BANDS, bandPower, peakAlphaFrequency, alpha3dBBandwidth, spectralEdgeFreq } from "./features";
 
+const FMIN = 0.5;
+const FMAX = 45;
+
+function clampBand(band: [number, number], fmin = FMIN, fmax = FMAX): [number, number] {
+  const lo = Math.max(band[0], fmin);
+  const hi = Math.min(band[1], fmax);
+  return [lo, hi];
+}
 export interface WindowFeatures {
   channels: string[];
   fs: number;
@@ -22,29 +30,36 @@ export interface WindowFeatures {
 export function computeWindowFeatures(w: WindowData): WindowFeatures {
   const fs = w.samplingRate;
 
-  const perChannel = w.data.map((sig) => {
+    const perChannel = w.data.map((sig) => {
     const { freqs, psd } = welchPSD(sig, fs, { segmentSeconds: 2, overlap: 0.5 });
 
-    // total 0.5-45
-    const total = bandPower({ freqs, psd }, [0.5, 45]) || 1e-12;
+    // ✅ total power only inside [0.5..45]
+    const total = bandPower({ freqs, psd }, [FMIN, FMAX]) || 1e-12;
 
     const bandAbs: Record<string, number> = {};
     const bandRel: Record<string, number> = {};
 
+    // ✅ Clamp each band to [0.5..45] to avoid >45Hz pollution
     for (const [name, band] of Object.entries(BANDS)) {
-      const p = bandPower({ freqs, psd }, band as any);
+      const clamped = clampBand(band as [number, number], FMIN, FMAX);
+      const p = (clamped[1] > clamped[0]) ? bandPower({ freqs, psd }, clamped) : 0;
+
       bandAbs[name] = p;
       bandRel[name] = p / total;
     }
 
-    const thetaBeta = (bandRel.theta ?? 0) / Math.max(1e-12, (bandRel.beta ?? 0));
-    const alphaTheta = (bandRel.alpha ?? 0) / Math.max(1e-12, (bandRel.theta ?? 0));
+    const thetaBeta =
+      (bandRel.theta ?? 0) / Math.max(1e-12, (bandRel.beta ?? 0));
+    const alphaTheta =
+      (bandRel.alpha ?? 0) / Math.max(1e-12, (bandRel.theta ?? 0));
 
-    const paf = peakAlphaFrequency(freqs, psd);
-    const alphaBW3dB = alpha3dBBandwidth(freqs, psd);
-    const sef95 = spectralEdgeFreq(freqs, psd, 0.95);
-    const sef5 = spectralEdgeFreq(freqs, psd, 0.05);
+    // ✅ Make sure these feature functions also operate only within [0.5..45]
+    // If your helper functions don't accept bounds yet, see the note below.
+    const sef95 = spectralEdgeFreq(freqs, psd, 0.95, 0.5, 45);
+    const sef5  = spectralEdgeFreq(freqs, psd, 0.05, 0.5, 45);
 
+    const paf = peakAlphaFrequency(freqs, psd, 0.5, 45);
+    const alphaBW3dB = alpha3dBBandwidth(freqs, psd, 0.5, 45);
     return { bandAbs, bandRel, thetaBeta, alphaTheta, paf, alphaBW3dB, sef95, sef5 };
   });
 
