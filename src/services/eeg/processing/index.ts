@@ -2,3 +2,8 @@ export * from "./types";
 export * from "./normalizeSession";
 export * from "./windowing";
 export * from "./computeWindowFeatures";
+export * from "./preprocess";
+export * from "./quality";
+export * from "./movement";
+export * from "./scores";
+export * from "./analyzeSession";

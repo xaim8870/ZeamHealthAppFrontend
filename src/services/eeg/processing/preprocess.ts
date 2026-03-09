@@ -1,5 +1,3 @@
-// src/services/eeg/processing/preprocess.ts
-
 export interface PreprocessOptions {
   fs: number;
   highpassHz?: number;   // default 0.5
@@ -12,7 +10,6 @@ function biquadFilter(
   b0: number, b1: number, b2: number,
   a0: number, a1: number, a2: number
 ): Float32Array {
-  // Normalize coefficients (a0 -> 1)
   b0 /= a0; b1 /= a0; b2 /= a0;
   a1 /= a0; a2 /= a0;
 
@@ -35,26 +32,24 @@ function biquadFilter(
 }
 
 export function highpassBiquad(x: Float32Array, fs: number, fc: number): Float32Array {
-  // RBJ Audio EQ Cookbook - Highpass
   const w0 = 2 * Math.PI * (fc / fs);
   const cosw0 = Math.cos(w0);
   const sinw0 = Math.sin(w0);
 
-  const Q = 0.7071; // Butterworth-ish
+  const Q = 0.7071;
   const alpha = sinw0 / (2 * Q);
 
-  const b0 =  (1 + cosw0) / 2;
+  const b0 = (1 + cosw0) / 2;
   const b1 = -(1 + cosw0);
-  const b2 =  (1 + cosw0) / 2;
-  const a0 =  1 + alpha;
+  const b2 = (1 + cosw0) / 2;
+  const a0 = 1 + alpha;
   const a1 = -2 * cosw0;
-  const a2 =  1 - alpha;
+  const a2 = 1 - alpha;
 
   return biquadFilter(x, b0, b1, b2, a0, a1, a2);
 }
 
 export function notchBiquad(x: Float32Array, fs: number, f0: number, Q: number): Float32Array {
-  // RBJ Audio EQ Cookbook - Notch
   const w0 = 2 * Math.PI * (f0 / fs);
   const cosw0 = Math.cos(w0);
   const sinw0 = Math.sin(w0);
@@ -79,13 +74,18 @@ export function preprocessChannel(
   const notch = opts.notchHz ?? 50;
   const notchQ = opts.notchQ ?? 30;
 
-  // 1) High-pass
   let y = highpassBiquad(x, fs, hp);
 
-  // 2) Notch (optional: only if notchHz > 0)
-  if (notch > 0) {
+  if (notch > 0 && notch < fs / 2) {
     y = notchBiquad(y, fs, notch, notchQ);
   }
 
   return y;
+}
+
+export function preprocessWindowChannels(
+  data: Float32Array[],
+  opts: PreprocessOptions
+): Float32Array[] {
+  return data.map(ch => preprocessChannel(ch, opts));
 }

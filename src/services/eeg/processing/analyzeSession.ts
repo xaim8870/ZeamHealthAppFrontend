@@ -2,6 +2,9 @@ import { sessionToFrames } from "./normalizeSession";
 import { collectWindow } from "./windowing";
 import { computeWindowFeatures } from "./computeWindowFeatures";
 import { computeQuality } from "./quality";
+import { preprocessWindowChannels } from "./preprocess";
+import { detectMovement } from "./movement";
+import { computeScores } from "./scores";
 import type { WindowDef } from "./types";
 
 export type StepResult = {
@@ -10,7 +13,9 @@ export type StepResult = {
   end: number;
   sqi: number;
   quality: ReturnType<typeof computeQuality>;
+  movement?: ReturnType<typeof detectMovement>;
   features?: ReturnType<typeof computeWindowFeatures>;
+  scores?: ReturnType<typeof computeScores>;
   skippedReason?: string;
 };
 
@@ -27,11 +32,9 @@ export function analyzeSession(session: any) {
       gapToleranceMult: 1.5,
     });
 
-    // ✅ collectWindow expects (frames, winObject)
     const winData = collectWindow(frames, w);
 
-    // If the window has no data, skip safely
-    if (!winData) {
+    if (!winData || !winData.data.length || !winData.data[0]?.length) {
       results.push({
         step: w.step,
         start: w.start,
@@ -43,8 +46,49 @@ export function analyzeSession(session: any) {
       continue;
     }
 
-    // Gate features on SQI + minimum samples (1s)
-    const ok = q.sqi >= 0.6 && winData.data[0].length >= winData.samplingRate;
+    const minSamples = winData.samplingRate;
+    const hasEnoughSamples = winData.data[0].length >= minSamples;
+    const hasUsableSignal = q.sqi >= 0.6 && hasEnoughSamples;
+
+    const processedData = preprocessWindowChannels(winData.data, {
+      fs: winData.samplingRate,
+      highpassHz: 0.5,
+      notchHz: 50,
+      notchQ: 30,
+    });
+
+    const processedWinData = {
+      ...winData,
+      data: processedData,
+    };
+
+    const movement = detectMovement(
+      processedWinData.data,
+      processedWinData.samplingRate,
+      processedWinData.channels
+    );
+
+    if (!hasUsableSignal) {
+      results.push({
+        step: w.step,
+        start: w.start,
+        end: w.end,
+        sqi: q.sqi,
+        quality: q,
+        movement,
+        skippedReason: "Low signal quality or insufficient samples",
+      });
+      continue;
+    }
+
+    const features = computeWindowFeatures(processedWinData);
+
+    const scores = computeScores({
+      perChannel: features.perChannel,
+      sqi: q.sqi,
+      movementBurden: movement.burden,
+      step: w.step,
+    });
 
     results.push({
       step: w.step,
@@ -52,8 +96,9 @@ export function analyzeSession(session: any) {
       end: w.end,
       sqi: q.sqi,
       quality: q,
-      features: ok ? computeWindowFeatures(winData) : undefined,
-      skippedReason: ok ? undefined : "Low signal quality or insufficient samples",
+      movement,
+      features,
+      scores,
     });
   }
 

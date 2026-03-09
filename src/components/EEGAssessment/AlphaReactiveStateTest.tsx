@@ -13,9 +13,9 @@ interface Props {
 
 /* 🎵 Calm EEG background music */
 const MUSIC_TRACKS = [
-  "/assets/music/1.wav",
-  "/assets/music/2.wav",
-  "/assets/music/3.wav",
+  "/assets/music/Calm.wav",
+  "/assets/music/Depth.wav",
+  
 ];
 
 const MUSIC_VOLUME = 0.12;
