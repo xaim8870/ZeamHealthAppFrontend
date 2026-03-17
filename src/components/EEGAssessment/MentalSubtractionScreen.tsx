@@ -11,7 +11,7 @@ interface Props {
 type Phase = "instruction" | "subtract" | "breathInstruction" | "breathing";
 
 /* Subtraction difficulty pool */
-const SUBTRACTION_VALUES = [7, 9, 11, 13];
+const SUBTRACTION_VALUES = [7, 9, 11];
 
 const INSTRUCTION_DURATION = 5; // seconds
 const SUBTRACTION_DURATION = 30; // seconds

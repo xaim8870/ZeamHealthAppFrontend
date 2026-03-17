@@ -2,8 +2,8 @@
 let beepAudio: HTMLAudioElement | null = null;
 let stopTimer: number | null = null;
 
-const BEEP_VOLUME = 0.2;       // increase/decrease (0.0 to 1.0)
-const BEEP_DURATION_MS = 1000;   // 0.1s
+const BEEP_VOLUME = 0.1;       // increase/decrease (0.0 to 1.0)
+const BEEP_DURATION_MS = 500;   // 0.1s
 const BEEP_START_AT = 0;     // IMPORTANT: skip initial silence (tune 0.00–0.08)
 
 const getBeep = () => {

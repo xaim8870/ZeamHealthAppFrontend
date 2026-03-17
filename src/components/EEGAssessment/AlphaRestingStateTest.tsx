@@ -16,22 +16,29 @@ const generateMathQuestions = (count: number) => {
 
     switch (op) {
       case "×":
-        a = Math.floor(Math.random() * 15) + 6;
-        b = Math.floor(Math.random() * 9) + 2;
+        // both single digit (2–9)
+        a = Math.floor(Math.random() * 8) + 2; // 2–9
+        b = Math.floor(Math.random() * 8) + 2; // 2–9
         break;
+
       case "÷":
-        b = Math.floor(Math.random() * 9) + 2;
-        a = b * (Math.floor(Math.random() * 12) + 2);
+        // both single digit (2–9) and divisible
+        b = Math.floor(Math.random() * 8) + 2; // divisor (2–9)
+        const multiplier = Math.floor(Math.random() * 8) + 2; // 2–9
+        a = b * multiplier; // result will be 2–9
         break;
+
       case "+":
         a = Math.floor(Math.random() * 50) + 10;
         b = Math.floor(Math.random() * 40) + 5;
         break;
+
       case "-":
         a = Math.floor(Math.random() * 80) + 20;
         b = Math.floor(Math.random() * 40) + 5;
         if (b > a) [a, b] = [b, a];
         break;
+
       default:
         a = 0;
         b = 0;
@@ -40,7 +47,6 @@ const generateMathQuestions = (count: number) => {
     return `${a} ${op} ${b}`;
   });
 };
-
 const QUESTIONS = generateMathQuestions(18);
 
 /* ===================== COMPONENT ===================== */

@@ -5,5 +5,6 @@ export * from "./computeWindowFeatures";
 export * from "./preprocess";
 export * from "./quality";
 export * from "./movement";
+export * from "./baseline";
 export * from "./scores";
 export * from "./analyzeSession";

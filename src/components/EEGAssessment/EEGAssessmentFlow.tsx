@@ -27,7 +27,7 @@ import { EEGStep, STEP_ORDER } from "@/types/eegFlow";
    - breathingTaskMs
    - alphaReactiveClosedMs / alphaReactiveOpenMs / alphaReactiveBreathingMs
    ========================================================= */
-const instructionMs = 5000;
+const instructionMs = 6000;
 
 const getReadyMs = 5000;
 
@@ -198,9 +198,11 @@ useEffect(() => {
   const totalMs = useMemo(() => {
     // Total across the “timed” part (excluding questionnaire + postEEG)
     const alphaReactiveTotal =
-      // 2 cycles: (instruction + closed + instruction + open) * 2
-      2 * (instructionMs + alphaReactiveClosedMs + instructionMs + alphaReactiveOpenMs) +
-      // optional breathing after 2 cycles
+      instructionMs + // only ONE instruction now
+      alphaReactiveClosedMs +
+      alphaReactiveOpenMs +
+      alphaReactiveClosedMs +
+      alphaReactiveOpenMs +
       Math.max(0, alphaReactiveBreathingMs);
 
     return (
@@ -352,9 +354,7 @@ useEffect(() => {
 
     if (alphaReactiveMode === "running") {
       recorder.openWindow(`alphaReactive_${alphaReactivePhase}`);
-    } else {
-      recorder.closeWindow();
-    }
+    } 
 
     return () => {
       recorder.closeWindow();
@@ -662,152 +662,119 @@ useEffect(() => {
 
   /* ================= STEP: alphaReactive ================= */
   /* ================= STEP: alphaReactive (2 cycles) ================= */
-  useEffect(() => {
-    if (step !== "alphaReactive") return;
+/* ================= STEP: alphaReactive (2 cycles, single instruction) ================= */
+useEffect(() => {
+  if (step !== "alphaReactive") return;
 
-    let cancelled = false;
-    const breathingMs = Math.max(0, alphaReactiveBreathingMs);
+  let cancelled = false;
+  const breathingMs = Math.max(0, alphaReactiveBreathingMs);
 
-    const closedSec = Math.ceil(alphaReactiveClosedMs / 1000);
-    const openSec = Math.ceil(alphaReactiveOpenMs / 1000);
+  const closedSec = Math.ceil(alphaReactiveClosedMs / 1000);
+  const openSec = Math.ceil(alphaReactiveOpenMs / 1000);
 
-    const setInstruction = (p: AlphaReactivePhase) => {
-      setAlphaReactiveMode("instruction");
-      setAlphaReactivePhase(p);
-      setAlphaReactiveProgress(0);
-      setAlphaReactiveTotalSec(p === "eyesClosed" ? closedSec : openSec);
-      setAlphaReactiveTimeLeft(p === "eyesClosed" ? closedSec : openSec);
-    };
+  const setInstruction = () => {
+    setAlphaReactiveMode("instruction");
+    setAlphaReactivePhase("eyesClosed");
+    setAlphaReactiveProgress(0);
+    setAlphaReactiveTotalSec(Math.ceil(instructionMs / 1000));
+    setAlphaReactiveTimeLeft(Math.ceil(instructionMs / 1000));
+  };
 
-    const setRunning = (p: AlphaReactivePhase) => {
-      setAlphaReactiveMode("running");
-      setAlphaReactivePhase(p);
-      setAlphaReactiveProgress(0);
-      setAlphaReactiveTotalSec(p === "eyesClosed" ? closedSec : openSec);
-      setAlphaReactiveTimeLeft(p === "eyesClosed" ? closedSec : openSec);
-    };
+  const setRunning = (p: AlphaReactivePhase) => {
+    setAlphaReactiveMode("running");
+    setAlphaReactivePhase(p);
+    setAlphaReactiveProgress(0);
+    setAlphaReactiveTotalSec(p === "eyesClosed" ? closedSec : openSec);
+    setAlphaReactiveTimeLeft(p === "eyesClosed" ? closedSec : openSec);
+  };
 
-    // Start: Instruction (eyes closed)
-    setInstruction("eyesClosed");
+  /* ===== STEP 1: Instruction ===== */
+  setInstruction();
 
-    const t1 = window.setTimeout(() => {
+  const t1 = window.setTimeout(() => {
+    if (cancelled) return;
+
+    /* ===== RUN 1: CLOSED ===== */
+    setRunning("eyesClosed");
+
+    const t2 = window.setTimeout(() => {
       if (cancelled) return;
 
-      // RUN 1: eyes closed
-      setRunning("eyesClosed");
+      /* ===== RUN 1: OPEN ===== */
+      setRunning("eyesOpen");
 
-      const t2 = window.setTimeout(() => {
+      const t3 = window.setTimeout(() => {
         if (cancelled) return;
 
-        // Instruction 1: eyes open
-        setInstruction("eyesOpen");
+        /* ===== RUN 2: CLOSED ===== */
+        setRunning("eyesClosed");
 
-        const t3 = window.setTimeout(() => {
+        const t4 = window.setTimeout(() => {
           if (cancelled) return;
 
-          // RUN 1: eyes open
+          /* ===== RUN 2: OPEN ===== */
           setRunning("eyesOpen");
 
-          const t4 = window.setTimeout(() => {
+          const t5 = window.setTimeout(() => {
             if (cancelled) return;
 
-            // Instruction 2: eyes closed
-            setInstruction("eyesClosed");
+            /* ===== OPTIONAL BREATHING ===== */
+            if (breathingMs > 0) {
+              setAlphaReactiveMode("running");
+              setAlphaReactivePhase("imageBreathing");
 
-            const t5 = window.setTimeout(() => {
-              if (cancelled) return;
-
-              // RUN 2: eyes closed
-              setRunning("eyesClosed");
+              const breathInterval = window.setInterval(() => {
+                setBreathLabel((prev) =>
+                  prev === "Inhale" ? "Exhale" : "Inhale"
+                );
+              }, 5000);
 
               const t6 = window.setTimeout(() => {
-                if (cancelled) return;
+                window.clearInterval(breathInterval);
+                if (!cancelled) setStep("mentalSubtraction");
+              }, breathingMs);
 
-                // Instruction 2: eyes open
-                setInstruction("eyesOpen");
-
-                const t7 = window.setTimeout(() => {
-                  if (cancelled) return;
-
-                  // RUN 2: eyes open
-                  setRunning("eyesOpen");
-
-                  const t8 = window.setTimeout(() => {
-                    if (cancelled) return;
-
-                    // Breathing AFTER 2 cycles
-                    if (breathingMs > 0) {
-                      setAlphaReactiveMode("running");
-                      setAlphaReactivePhase("imageBreathing");
-
-                      const breathInterval = window.setInterval(() => {
-                        setBreathLabel((prev) =>
-                          prev === "Inhale" ? "Exhale" : "Inhale"
-                        );
-                      }, 5000);
-
-                      const t9 = window.setTimeout(() => {
-                        window.clearInterval(breathInterval);
-                        if (!cancelled) setStep("mentalSubtraction");
-                      }, breathingMs);
-
-                      return () => {
-                        window.clearInterval(breathInterval);
-                        window.clearTimeout(t9);
-                      };
-                    } else {
-                      setStep("mentalSubtraction");
-                    }
-                  }, alphaReactiveOpenMs);
-
-                  return () => window.clearTimeout(t8);
-                }, instructionMs);
-
-                return () => window.clearTimeout(t7);
-              }, alphaReactiveClosedMs);
-
-              return () => window.clearTimeout(t6);
-            }, instructionMs);
-
-            return () => window.clearTimeout(t5);
+              return () => {
+                window.clearInterval(breathInterval);
+                window.clearTimeout(t6);
+              };
+            } else {
+              setStep("mentalSubtraction");
+            }
           }, alphaReactiveOpenMs);
 
-          return () => window.clearTimeout(t4);
-        }, instructionMs);
+          return () => window.clearTimeout(t5);
+        }, alphaReactiveClosedMs);
 
-        return () => window.clearTimeout(t3);
-      }, alphaReactiveClosedMs);
+        return () => window.clearTimeout(t4);
+      }, alphaReactiveOpenMs);
 
-      return () => window.clearTimeout(t2);
-    }, instructionMs);
+      return () => window.clearTimeout(t3);
+    }, alphaReactiveClosedMs);
 
-    // HARD FAILSAFE (2 cycles + breathing)
-    const failsafe = window.setTimeout(
-      () => {
-        if (!cancelled) setStep("mentalSubtraction");
-      },
-      // cycle 1
-      instructionMs +
-        alphaReactiveClosedMs +
-        instructionMs +
-        alphaReactiveOpenMs +
-        // cycle 2
-        instructionMs +
-        alphaReactiveClosedMs +
-        instructionMs +
-        alphaReactiveOpenMs +
-        // breathing
-        breathingMs +
-        HARD_FAILSAFE_EXTRA_MS
-    );
+    return () => window.clearTimeout(t2);
+  }, instructionMs);
+  alphaReactiveBeepedRef.current = false;
+  /* ===== HARD FAILSAFE ===== */
+  const failsafe = window.setTimeout(
+    () => {
+      if (!cancelled) setStep("mentalSubtraction");
+    },
+    instructionMs +
+      alphaReactiveClosedMs +
+      alphaReactiveOpenMs +
+      alphaReactiveClosedMs +
+      alphaReactiveOpenMs +
+      breathingMs +
+      HARD_FAILSAFE_EXTRA_MS
+  );
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t1);
-      window.clearTimeout(failsafe);
-    };
-  }, [step]);
-
+  return () => {
+    cancelled = true;
+    window.clearTimeout(t1);
+    window.clearTimeout(failsafe);
+  };
+}, [step]);
   /* ================= mentalSubtraction (user-paced component) =================
      Add a hard failsafe anyway so it NEVER gets stuck.
   ========================================================================== */
